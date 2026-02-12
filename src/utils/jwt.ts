@@ -4,15 +4,17 @@ import { JWTPayload } from '../types/express';
 import { AuthenticationError } from './errors';
 
 export const generateAccessToken = (payload: JWTPayload): string => {
-  return jwt.sign(payload, env.JWT_SECRET, {
+  const options: SignOptions = {
     expiresIn: env.JWT_EXPIRES_IN as any,
-  });
+  };
+  return jwt.sign(payload, env.JWT_SECRET, options);
 };
 
 export const generateRefreshToken = (payload: JWTPayload): string => {
-  return jwt.sign(payload, env.JWT_REFRESH_SECRET, {
+  const options: SignOptions = {
     expiresIn: env.JWT_REFRESH_EXPIRES_IN as any,
-  });
+  };
+  return jwt.sign(payload, env.JWT_REFRESH_SECRET, options);
 };
 
 export const generateTokenPair = (userId: string, email: string) => {

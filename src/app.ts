@@ -7,7 +7,9 @@ import logger from './utils/logger';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { connectDatabase } from './config/database';
 import { connectRedis } from './config/redis';
+import { testS3Connection } from './config/aws';
 import authRoutes from './routes/auth.routes';
+import uploadRoutes from './routes/upload.routes';
 
 const app: Application = express();
 
@@ -40,6 +42,7 @@ app.get('/health', (req: Request, res: Response) => {
 
 // API routes
 app.use(`/api/${env.API_VERSION}/auth`, authRoutes);
+app.use(`/api/${env.API_VERSION}/upload`, uploadRoutes);
 // app.use(`/api/${env.API_VERSION}/users`, userRoutes);
 // etc.
 
@@ -57,6 +60,9 @@ const startServer = async () => {
 
     // Connect to Redis
     await connectRedis();
+
+    // Test S3 connection
+    await testS3Connection();
 
     // Start server
     const PORT = env.PORT;
