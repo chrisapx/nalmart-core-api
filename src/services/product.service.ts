@@ -20,6 +20,10 @@ interface CreateProductInput {
   stock_status?: 'in_stock' | 'out_of_stock' | 'backorder';
   is_active?: boolean;
   is_featured?: boolean;
+  is_published?: boolean;
+  brand?: string;
+  meta_title?: string;
+  meta_description?: string;
   weight?: number;
   dimensions?: { length: number; width: number; height: number };
   metadata?: Record<string, unknown>;
@@ -43,6 +47,7 @@ interface GetProductsQuery {
   category_id?: number;
   is_active?: boolean;
   is_featured?: boolean;
+  is_published?: boolean;
   stock_status?: 'in_stock' | 'out_of_stock' | 'backorder';
   min_price?: number;
   max_price?: number;
@@ -152,6 +157,7 @@ export class ProductService {
       category_id,
       is_active,
       is_featured,
+      is_published,
       stock_status,
       min_price,
       max_price,
@@ -180,6 +186,10 @@ export class ProductService {
 
     if (is_featured !== undefined) {
       where.is_featured = is_featured;
+    }
+
+    if (is_published !== undefined) {
+      where.is_published = is_published;
     }
 
     if (stock_status) {
@@ -476,5 +486,104 @@ export class ProductService {
         },
       ],
     });
+  }
+
+  static async togglePublish(
+    id: number,
+    is_published: boolean
+  ): Promise<Product> {
+    const product = await Product.findByPk(id);
+
+    if (!product) {
+      throw new NotFoundError(`Product with ID ${id} not found`);
+    }
+
+    await product.update({ is_published });
+
+    logger.info(
+      `Product ${is_published ? 'published' : 'unpublished'}: ${product.id} - ${product.name}`
+    );
+
+    return await this.getProductById(id);
+  }
+
+  static async toggleFeatured(
+    id: number,
+    is_featured: boolean
+  ): Promise<Product> {
+    const product = await Product.findByPk(id);
+
+    if (!product) {
+      throw new NotFoundError(`Product with ID ${id} not found`);
+    }
+
+    await product.update({ is_featured });
+
+    logger.info(
+      `Product ${is_featured ? 'featured' : 'unfeatured'}: ${product.id} - ${product.name}`
+    );
+
+    return await this.getProductById(id);
+  }
+
+  static async duplicateProduct(id: number): Promise<Product> {
+    const product = await Product.findByPk(id, {
+      include: [
+        {
+          model: ProductImage,
+          as: 'images',
+        },
+      ],
+    });
+
+    if (!product) {
+      throw new NotFoundError(`Product with ID ${id} not found`);
+    }
+
+    // Create new product with copied data
+    const duplicatedData: CreateProductInput = {
+      name: `${product.name} (Copy)`,
+      slug: '', // Will be auto-generated
+      description: product.description,
+      short_description: product.short_description,
+      sku: product.sku ? `${product.sku}-COPY` : undefined,
+      price: product.price,
+      compare_at_price: product.compare_at_price,
+      cost_price: product.cost_price,
+      category_id: product.category_id,
+      stock_quantity: product.stock_quantity,
+      low_stock_threshold: product.low_stock_threshold,
+      stock_status: product.stock_status as 'in_stock' | 'out_of_stock' | 'backorder',
+      is_active: product.is_active,
+      is_featured: false, // Don't copy featured status
+      is_published: false, // New product should be unpublished
+      brand: product.brand,
+      meta_title: product.meta_title,
+      meta_description: product.meta_description,
+      weight: product.weight,
+      dimensions: product.dimensions,
+      metadata: product.metadata,
+    };
+
+    const newProduct = await this.createProduct(duplicatedData);
+
+    // Copy product images
+    if (product.images && product.images.length > 0) {
+      for (const image of product.images) {
+        await ProductImage.create({
+          product_id: newProduct.id,
+          url: image.url,
+          name: image.name,
+          is_primary: image.is_primary,
+          sort_order: image.sort_order,
+        });
+      }
+    }
+
+    logger.info(
+      `Product duplicated: Original ID: ${id}, New ID: ${newProduct.id}`
+    );
+
+    return await this.getProductById(newProduct.id);
   }
 }

@@ -69,6 +69,13 @@ export default class ProductImage extends Model {
   is_primary!: boolean;
 
   @Column({
+    type: DataType.ENUM('cover', 'gallery', 'demo'),
+    defaultValue: 'gallery',
+    comment: 'Type of image: cover (main product image), gallery (additional product images), demo (usage demonstration images)',
+  })
+  image_type!: 'cover' | 'gallery' | 'demo';
+
+  @Column({
     type: DataType.INTEGER,
     defaultValue: 0,
   })

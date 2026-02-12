@@ -10,6 +10,9 @@ import {
   getFeaturedProducts,
   getRelatedProducts,
   getLowStockProducts,
+  togglePublishProduct,
+  toggleFeaturedProduct,
+  duplicateProduct,
 } from '../controllers/product.controller';
 import { authenticate } from '../middleware/auth';
 import { authorize } from '../middleware/rbac';
@@ -24,6 +27,8 @@ import {
   getProductsQuerySchema,
   productIdParamSchema,
   updateStockSchema,
+  togglePublishSchema,
+  toggleFeaturedSchema,
 } from '../validators/product.validator';
 
 const router = Router();
@@ -94,6 +99,32 @@ router.patch(
   validateParams(productIdParamSchema),
   validateBody(updateStockSchema),
   updateStock
+);
+
+router.patch(
+  '/:id/publish',
+  authenticate,
+  authorize('UPDATE_PRODUCT'),
+  validateParams(productIdParamSchema),
+  validateBody(togglePublishSchema),
+  togglePublishProduct
+);
+
+router.patch(
+  '/:id/featured',
+  authenticate,
+  authorize('UPDATE_PRODUCT'),
+  validateParams(productIdParamSchema),
+  validateBody(toggleFeaturedSchema),
+  toggleFeaturedProduct
+);
+
+router.post(
+  '/:id/duplicate',
+  authenticate,
+  authorize('CREATE_PRODUCT'),
+  validateParams(productIdParamSchema),
+  duplicateProduct
 );
 
 export default router;

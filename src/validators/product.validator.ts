@@ -77,6 +77,20 @@ export const createProductSchema = Joi.object({
 
   is_featured: Joi.boolean().default(false),
 
+  is_published: Joi.boolean().default(false).messages({
+    'boolean.base': 'Is published must be a boolean',
+  }),
+
+  brand: Joi.string().max(100).optional().allow('', null).messages({
+    'string.max': 'Brand must not exceed 100 characters',
+  }),
+
+  meta_title: Joi.string().max(255).optional().allow('', null).messages({
+    'string.max': 'Meta title must not exceed 255 characters',
+  }),
+
+  meta_description: Joi.string().optional().allow('', null),
+
   weight: Joi.number().precision(2).min(0).optional().allow(null).messages({
     'number.base': 'Weight must be a number',
     'number.min': 'Weight must be at least 0',
@@ -171,6 +185,20 @@ export const updateProductSchema = Joi.object({
 
   is_featured: Joi.boolean().optional(),
 
+  is_published: Joi.boolean().optional().messages({
+    'boolean.base': 'Is published must be a boolean',
+  }),
+
+  brand: Joi.string().max(100).optional().allow('', null).messages({
+    'string.max': 'Brand must not exceed 100 characters',
+  }),
+
+  meta_title: Joi.string().max(255).optional().allow('', null).messages({
+    'string.max': 'Meta title must not exceed 255 characters',
+  }),
+
+  meta_description: Joi.string().optional().allow('', null),
+
   weight: Joi.number().precision(2).min(0).optional().allow(null).messages({
     'number.base': 'Weight must be a number',
     'number.min': 'Weight must be at least 0',
@@ -240,6 +268,8 @@ export const getProductsQuerySchema = Joi.object({
 
   is_featured: Joi.boolean().optional(),
 
+  is_published: Joi.boolean().optional(),
+
   stock_status: Joi.string()
     .valid('in_stock', 'out_of_stock', 'backorder')
     .optional()
@@ -289,4 +319,18 @@ export const updateStockSchema = Joi.object({
       'any.only':
         'Stock status must be one of: in_stock, out_of_stock, backorder',
     }),
+});
+
+export const togglePublishSchema = Joi.object({
+  is_published: Joi.boolean().required().messages({
+    'boolean.base': 'Is published must be a boolean',
+    'any.required': 'Is published is required',
+  }),
+});
+
+export const toggleFeaturedSchema = Joi.object({
+  is_featured: Joi.boolean().required().messages({
+    'boolean.base': 'Is featured must be a boolean',
+    'any.required': 'Is featured is required',
+  }),
 });

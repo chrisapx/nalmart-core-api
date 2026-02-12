@@ -241,7 +241,12 @@ export const deleteProductImage = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const id = req.params.id as string;
+    const idParam = req.params.id;
+    const id = parseInt(typeof idParam === 'string' ? idParam : idParam[0], 10);
+
+    if (isNaN(id)) {
+      throw new BadRequestError('Invalid product image ID');
+    }
 
     // Find product image
     const productImage = await ProductImage.findByPk(id);

@@ -12,6 +12,7 @@ import {
 } from 'sequelize-typescript';
 import Category from './Category';
 import ProductImage from './ProductImage';
+import ProductVideo from './ProductVideo';
 
 @Table({
   tableName: 'products',
@@ -120,6 +121,33 @@ export default class Product extends Model {
   is_featured!: boolean;
 
   @Column({
+    type: DataType.BOOLEAN,
+    defaultValue: false,
+    comment: 'Whether the product is published and visible to customers',
+  })
+  is_published!: boolean;
+
+  @Column({
+    type: DataType.STRING(100),
+    allowNull: true,
+  })
+  brand!: string;
+
+  @Column({
+    type: DataType.STRING(255),
+    allowNull: true,
+    comment: 'SEO meta title',
+  })
+  meta_title!: string;
+
+  @Column({
+    type: DataType.TEXT,
+    allowNull: true,
+    comment: 'SEO meta description',
+  })
+  meta_description!: string;
+
+  @Column({
     type: DataType.DECIMAL(3, 1),
     defaultValue: 0,
     comment: 'Average rating 0-5',
@@ -180,4 +208,7 @@ export default class Product extends Model {
 
   @HasMany(() => ProductImage)
   images!: ProductImage[];
+
+  @HasMany(() => ProductVideo)
+  videos!: ProductVideo[];
 }

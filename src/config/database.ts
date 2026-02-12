@@ -9,6 +9,7 @@ import RolePermission from '../models/RolePermission';
 import Category from '../models/Category';
 import Product from '../models/Product';
 import ProductImage from '../models/ProductImage';
+import ProductVideo from '../models/ProductVideo';
 import Order from '../models/Order';
 import OrderItem from '../models/OrderItem';
 
@@ -39,6 +40,7 @@ const sequelize = new Sequelize({
     Category,
     Product,
     ProductImage,
+    ProductVideo,
     Order,
     OrderItem,
   ],

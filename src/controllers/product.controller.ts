@@ -195,3 +195,78 @@ export const getLowStockProducts = async (
     next(error);
   }
 };
+
+export const togglePublishProduct = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const idParam = req.params.id;
+    const productId = parseInt(typeof idParam === 'string' ? idParam : idParam[0], 10);
+
+    if (isNaN(productId)) {
+      throw new Error('Invalid product ID');
+    }
+
+    const { is_published } = req.body;
+
+    const product = await ProductService.togglePublish(productId, is_published);
+
+    successResponse(
+      res,
+      product,
+      `Product ${is_published ? 'published' : 'unpublished'} successfully`
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const toggleFeaturedProduct = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const idParam = req.params.id;
+    const productId = parseInt(typeof idParam === 'string' ? idParam : idParam[0], 10);
+
+    if (isNaN(productId)) {
+      throw new Error('Invalid product ID');
+    }
+
+    const { is_featured } = req.body;
+
+    const product = await ProductService.toggleFeatured(productId, is_featured);
+
+    successResponse(
+      res,
+      product,
+      `Product ${is_featured ? 'featured' : 'unfeatured'} successfully`
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const duplicateProduct = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const idParam = req.params.id;
+    const productId = parseInt(typeof idParam === 'string' ? idParam : idParam[0], 10);
+
+    if (isNaN(productId)) {
+      throw new Error('Invalid product ID');
+    }
+
+    const product = await ProductService.duplicateProduct(productId);
+
+    successResponse(res, product, 'Product duplicated successfully', 201);
+  } catch (error) {
+    next(error);
+  }
+};
