@@ -1,6 +1,16 @@
 import { Sequelize } from 'sequelize-typescript';
 import env from './env';
 import logger from '../utils/logger';
+import User from '../models/User';
+import Role from '../models/Role';
+import Permission from '../models/Permission';
+import UserRole from '../models/UserRole';
+import RolePermission from '../models/RolePermission';
+import Category from '../models/Category';
+import Product from '../models/Product';
+import ProductImage from '../models/ProductImage';
+import Order from '../models/Order';
+import OrderItem from '../models/OrderItem';
 
 const sequelize = new Sequelize({
   host: env.DB_HOST,
@@ -20,7 +30,18 @@ const sequelize = new Sequelize({
     timestamps: true,
     underscored: true,
   },
-  models: [], // Models will be added here
+  models: [
+    User,
+    Role,
+    Permission,
+    UserRole,
+    RolePermission,
+    Category,
+    Product,
+    ProductImage,
+    Order,
+    OrderItem,
+  ],
 });
 
 export const connectDatabase = async (): Promise<void> => {
