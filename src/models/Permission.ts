@@ -17,11 +17,11 @@ import RolePermission from './RolePermission';
 })
 export default class Permission extends Model {
   @Column({
-    type: DataType.UUID,
+    type: DataType.BIGINT,
     primaryKey: true,
-    defaultValue: DataType.UUIDV4,
+    autoIncrement: true,
   })
-  id!: string;
+  id!: number;
 
   @Column({
     type: DataType.STRING(100),

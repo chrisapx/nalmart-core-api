@@ -18,25 +18,25 @@ import Product from './Product';
 })
 export default class OrderItem extends Model {
   @Column({
-    type: DataType.UUID,
+    type: DataType.BIGINT,
     primaryKey: true,
-    defaultValue: DataType.UUIDV4,
+    autoIncrement: true,
   })
-  id!: string;
+  id!: number;
 
   @ForeignKey(() => Order)
   @Column({
-    type: DataType.UUID,
+    type: DataType.BIGINT,
     allowNull: false,
   })
-  order_id!: string;
+  order_id!: number;
 
   @ForeignKey(() => Product)
   @Column({
-    type: DataType.UUID,
+    type: DataType.BIGINT,
     allowNull: false,
   })
-  product_id!: string;
+  product_id!: number;
 
   @Column({
     type: DataType.STRING(255),

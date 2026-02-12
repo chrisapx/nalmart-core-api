@@ -17,32 +17,32 @@ import Permission from './Permission';
 })
 export default class RolePermission extends Model {
   @Column({
-    type: DataType.UUID,
+    type: DataType.BIGINT,
     primaryKey: true,
-    defaultValue: DataType.UUIDV4,
+    autoIncrement: true,
   })
-  id!: string;
+  id!: number;
 
   @ForeignKey(() => Role)
   @Column({
-    type: DataType.UUID,
+    type: DataType.BIGINT,
     allowNull: false,
   })
-  role_id!: string;
+  role_id!: number;
 
   @ForeignKey(() => Permission)
   @Column({
-    type: DataType.UUID,
+    type: DataType.BIGINT,
     allowNull: false,
   })
-  permission_id!: string;
+  permission_id!: number;
 
   @Column({
-    type: DataType.UUID,
+    type: DataType.BIGINT,
     allowNull: true,
     comment: 'ID of user who assigned this permission',
   })
-  assigned_by!: string;
+  assigned_by!: number;
 
   @CreatedAt
   created_at!: Date;

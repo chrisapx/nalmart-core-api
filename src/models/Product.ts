@@ -21,11 +21,11 @@ import ProductImage from './ProductImage';
 })
 export default class Product extends Model {
   @Column({
-    type: DataType.UUID,
+    type: DataType.BIGINT,
     primaryKey: true,
-    defaultValue: DataType.UUIDV4,
+    autoIncrement: true,
   })
-  id!: string;
+  id!: number;
 
   @Column({
     type: DataType.STRING(255),
@@ -82,10 +82,10 @@ export default class Product extends Model {
 
   @ForeignKey(() => Category)
   @Column({
-    type: DataType.UUID,
+    type: DataType.BIGINT,
     allowNull: true,
   })
-  category_id!: string;
+  category_id!: number;
 
   @Column({
     type: DataType.INTEGER,

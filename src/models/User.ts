@@ -11,7 +11,6 @@ import {
   BelongsToMany,
   HasMany,
 } from 'sequelize-typescript';
-import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcrypt';
 import Role from './Role';
 import UserRole from './UserRole';
@@ -24,11 +23,11 @@ import UserRole from './UserRole';
 })
 export default class User extends Model {
   @Column({
-    type: DataType.UUID,
+    type: DataType.BIGINT,
     primaryKey: true,
-    defaultValue: DataType.UUIDV4,
+    autoIncrement: true,
   })
-  id!: string;
+  id!: number;
 
   @Column({
     type: DataType.STRING(100),

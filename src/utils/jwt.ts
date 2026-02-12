@@ -17,7 +17,7 @@ export const generateRefreshToken = (payload: JWTPayload): string => {
   return jwt.sign(payload, env.JWT_REFRESH_SECRET, options);
 };
 
-export const generateTokenPair = (userId: string, email: string) => {
+export const generateTokenPair = (userId: number, email: string) => {
   const payload: JWTPayload = { userId, email };
 
   return {

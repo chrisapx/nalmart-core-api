@@ -18,11 +18,11 @@ import Product from './Product';
 })
 export default class Category extends Model {
   @Column({
-    type: DataType.UUID,
+    type: DataType.BIGINT,
     primaryKey: true,
-    defaultValue: DataType.UUIDV4,
+    autoIncrement: true,
   })
-  id!: string;
+  id!: number;
 
   @Column({
     type: DataType.STRING(100),
@@ -44,11 +44,11 @@ export default class Category extends Model {
   description!: string;
 
   @Column({
-    type: DataType.UUID,
+    type: DataType.BIGINT,
     allowNull: true,
     comment: 'Parent category ID for nested categories',
   })
-  parent_id!: string;
+  parent_id!: number;
 
   @Column({
     type: DataType.STRING(500),

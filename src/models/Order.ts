@@ -21,26 +21,26 @@ import OrderItem from './OrderItem';
 })
 export default class Order extends Model {
   @Column({
-    type: DataType.UUID,
+    type: DataType.BIGINT,
     primaryKey: true,
-    defaultValue: DataType.UUIDV4,
+    autoIncrement: true,
   })
-  id!: string;
+  id!: number;
 
   @Column({
     type: DataType.STRING(50),
     allowNull: false,
     unique: true,
-    comment: 'Human-readable order number',
+    comment: 'Human-readable 10-digit order number',
   })
   order_number!: string;
 
   @ForeignKey(() => User)
   @Column({
-    type: DataType.UUID,
+    type: DataType.BIGINT,
     allowNull: false,
   })
-  user_id!: string;
+  user_id!: number;
 
   @Column({
     type: DataType.ENUM(

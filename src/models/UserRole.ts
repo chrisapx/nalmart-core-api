@@ -17,32 +17,32 @@ import Role from './Role';
 })
 export default class UserRole extends Model {
   @Column({
-    type: DataType.UUID,
+    type: DataType.BIGINT,
     primaryKey: true,
-    defaultValue: DataType.UUIDV4,
+    autoIncrement: true,
   })
-  id!: string;
+  id!: number;
 
   @ForeignKey(() => User)
   @Column({
-    type: DataType.UUID,
+    type: DataType.BIGINT,
     allowNull: false,
   })
-  user_id!: string;
+  user_id!: number;
 
   @ForeignKey(() => Role)
   @Column({
-    type: DataType.UUID,
+    type: DataType.BIGINT,
     allowNull: false,
   })
-  role_id!: string;
+  role_id!: number;
 
   @Column({
-    type: DataType.UUID,
+    type: DataType.BIGINT,
     allowNull: true,
     comment: 'ID of user who assigned this role',
   })
-  assigned_by!: string;
+  assigned_by!: number;
 
   @CreatedAt
   created_at!: Date;
