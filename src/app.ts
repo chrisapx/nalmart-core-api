@@ -10,6 +10,7 @@ import { connectRedis } from './config/redis';
 import { testS3Connection } from './config/aws';
 import authRoutes from './routes/auth.routes';
 import uploadRoutes from './routes/upload.routes';
+import productRoutes from './routes/product.routes';
 
 const app: Application = express();
 
@@ -43,6 +44,7 @@ app.get('/health', (req: Request, res: Response) => {
 // API routes
 app.use(`/api/${env.API_VERSION}/auth`, authRoutes);
 app.use(`/api/${env.API_VERSION}/upload`, uploadRoutes);
+app.use(`/api/${env.API_VERSION}/products`, productRoutes);
 // app.use(`/api/${env.API_VERSION}/users`, userRoutes);
 // etc.
 
