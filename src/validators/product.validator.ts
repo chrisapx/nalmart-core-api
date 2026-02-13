@@ -13,12 +13,22 @@ export const createProductSchema = Joi.object({
     'string.max': 'Slug must not exceed 255 characters',
   }),
 
-  description: Joi.string().optional().allow('', null),
+  description: Joi.string().optional().allow('', null).messages({
+    'string.base': 'Description must be a string',
+  }),
 
   short_description: Joi.string().optional().allow('', null),
 
-  sku: Joi.string().max(100).optional().allow('', null).messages({
-    'string.max': 'SKU must not exceed 100 characters',
+  features: Joi.string().optional().allow('', null).messages({
+    'string.base': 'Features must be a string',
+  }),
+
+  sku: Joi.string().max(20).optional().allow('', null).messages({
+    'string.max': 'SKU must not exceed 20 characters',
+  }),
+
+  jug: Joi.string().max(20).optional().allow('', null).messages({
+    'string.max': 'JUG must not exceed 20 characters',
   }),
 
   price: Joi.number().precision(2).min(0).required().messages({
@@ -85,6 +95,14 @@ export const createProductSchema = Joi.object({
     'string.max': 'Brand must not exceed 100 characters',
   }),
 
+  eligible_for_return: Joi.boolean().default(true).messages({
+    'boolean.base': 'Eligible for return must be a boolean',
+  }),
+
+  return_policy: Joi.string().optional().allow('', null).messages({
+    'string.base': 'Return policy must be a string',
+  }),
+
   meta_title: Joi.string().max(255).optional().allow('', null).messages({
     'string.max': 'Meta title must not exceed 255 characters',
   }),
@@ -122,12 +140,22 @@ export const updateProductSchema = Joi.object({
     'string.max': 'Slug must not exceed 255 characters',
   }),
 
-  description: Joi.string().optional().allow('', null),
+  description: Joi.string().optional().allow('', null).messages({
+    'string.base': 'Description must be a string',
+  }),
 
   short_description: Joi.string().optional().allow('', null),
 
-  sku: Joi.string().max(100).optional().allow('', null).messages({
-    'string.max': 'SKU must not exceed 100 characters',
+  features: Joi.string().optional().allow('', null).messages({
+    'string.base': 'Features must be a string',
+  }),
+
+  sku: Joi.string().max(20).optional().allow('', null).messages({
+    'string.max': 'SKU must not exceed 20 characters',
+  }),
+
+  jug: Joi.string().max(20).optional().allow('', null).messages({
+    'string.max': 'JUG must not exceed 20 characters',
   }),
 
   price: Joi.number().precision(2).min(0).optional().messages({
@@ -191,6 +219,14 @@ export const updateProductSchema = Joi.object({
 
   brand: Joi.string().max(100).optional().allow('', null).messages({
     'string.max': 'Brand must not exceed 100 characters',
+  }),
+
+  eligible_for_return: Joi.boolean().optional().messages({
+    'boolean.base': 'Eligible for return must be a boolean',
+  }),
+
+  return_policy: Joi.string().optional().allow('', null).messages({
+    'string.base': 'Return policy must be a string',
   }),
 
   meta_title: Joi.string().max(255).optional().allow('', null).messages({

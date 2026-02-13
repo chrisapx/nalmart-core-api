@@ -42,8 +42,9 @@ export default class Product extends Model {
   slug!: string;
 
   @Column({
-    type: DataType.TEXT,
+    type: DataType.TEXT('long'),
     allowNull: true,
+    comment: 'Rich text description with images and formatting',
   })
   description!: string;
 
@@ -54,10 +55,26 @@ export default class Product extends Model {
   short_description!: string;
 
   @Column({
-    type: DataType.STRING(100),
+    type: DataType.TEXT('long'),
     allowNull: true,
+    comment: 'Rich text product features with formatting',
+  })
+  features!: string;
+
+  @Column({
+    type: DataType.STRING(20),
+    allowNull: true,
+    unique: true,
+    comment: 'Format: SKU-XXXXXXXXXXXXXX (14 random digits) - Warehouse inventory ID embedded in QR Code',
   })
   sku!: string;
+
+  @Column({
+    type: DataType.STRING(20),
+    allowNull: true,
+    comment: 'Format: JUG-XXXXXXXXXXXXXX - Groups same products in stock, used for stock count display',
+  })
+  jug!: string;
 
   @Column({
     type: DataType.DECIMAL(10, 2),
@@ -132,6 +149,20 @@ export default class Product extends Model {
     allowNull: true,
   })
   brand!: string;
+
+  @Column({
+    type: DataType.BOOLEAN,
+    defaultValue: true,
+    comment: 'Whether product is eligible for return',
+  })
+  eligible_for_return!: boolean;
+
+  @Column({
+    type: DataType.TEXT,
+    allowNull: true,
+    comment: 'Return policy details including time limits and conditions',
+  })
+  return_policy!: string;
 
   @Column({
     type: DataType.STRING(255),

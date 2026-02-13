@@ -270,3 +270,19 @@ export const duplicateProduct = async (
     next(error);
   }
 };
+
+export const getUniqueBrands = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const search = req.query.search as string | undefined;
+
+    const brands = await ProductService.getUniqueBrands(search);
+
+    successResponse(res, brands, 'Brands retrieved successfully');
+  } catch (error) {
+    next(error);
+  }
+};

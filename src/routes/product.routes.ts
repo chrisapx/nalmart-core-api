@@ -13,6 +13,7 @@ import {
   togglePublishProduct,
   toggleFeaturedProduct,
   duplicateProduct,
+  getUniqueBrands,
 } from '../controllers/product.controller';
 import { authenticate } from '../middleware/auth';
 import { authorize } from '../middleware/rbac';
@@ -41,6 +42,11 @@ router.get(
 router.get(
   '/featured',
   getFeaturedProducts
+);
+
+router.get(
+  '/brands',
+  getUniqueBrands
 );
 
 router.get(

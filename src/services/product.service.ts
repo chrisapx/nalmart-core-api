@@ -1,4 +1,5 @@
-import { Op, WhereOptions, Order } from 'sequelize';
+import { Op, WhereOptions, Order, Sequelize as SequelizeStatic } from 'sequelize';
+import sequelize from '../config/database';
 import Product from '../models/Product';
 import Category from '../models/Category';
 import ProductImage from '../models/ProductImage';
@@ -10,7 +11,9 @@ interface CreateProductInput {
   slug?: string;
   description?: string;
   short_description?: string;
+  features?: string;
   sku?: string;
+  jug?: string;
   price: number;
   compare_at_price?: number;
   cost_price?: number;
@@ -22,6 +25,8 @@ interface CreateProductInput {
   is_featured?: boolean;
   is_published?: boolean;
   brand?: string;
+  eligible_for_return?: boolean;
+  return_policy?: string;
   meta_title?: string;
   meta_description?: string;
   weight?: number;
@@ -108,6 +113,40 @@ export class ProductService {
     return 'in_stock';
   }
 
+  /**
+   * Generate a unique SKU: SKU-XXXXXXXXXXXXXX (14 random digits)
+   */
+  static async generateUniqueSKU(): Promise<string> {
+    let sku: string;
+    let exists = true;
+
+    while (exists) {
+      // Generate 14 random digits
+      const randomDigits = Math.floor(Math.random() * 100000000000000)
+        .toString()
+        .padStart(14, '0');
+      sku = `SKU-${randomDigits}`;
+
+      // Check if SKU already exists
+      const existingProduct = await Product.findOne({ where: { sku } });
+      exists = !!existingProduct;
+    }
+
+    return sku!;
+  }
+
+  /**
+   * Generate a JUG: JUG-XXXXXXXXXXXXXX (14 random digits)
+   * Note: JUG can be shared across multiple products
+   */
+  static generateJUG(): string {
+    // Generate 14 random digits
+    const randomDigits = Math.floor(Math.random() * 100000000000000)
+      .toString()
+      .padStart(14, '0');
+    return `JUG-${randomDigits}`;
+  }
+
   static async createProduct(
     data: CreateProductInput
   ): Promise<Product> {
@@ -123,12 +162,20 @@ export class ProductService {
       }
     }
 
-    if (data.sku) {
-      const existingSku = await Product.findOne({ where: { sku: data.sku } });
+    // Auto-generate SKU if not provided
+    let sku = data.sku;
+    if (!sku) {
+      sku = await this.generateUniqueSKU();
+    } else {
+      // Validate SKU if provided
+      const existingSku = await Product.findOne({ where: { sku } });
       if (existingSku) {
-        throw new BadRequestError(`Product with SKU ${data.sku} already exists`);
+        throw new BadRequestError(`Product with SKU ${sku} already exists`);
       }
     }
+
+    // Auto-generate JUG if not provided
+    const jug = data.jug || this.generateJUG();
 
     const stockStatus =
       data.stock_status ||
@@ -137,10 +184,12 @@ export class ProductService {
     const product = await Product.create({
       ...data,
       slug,
+      sku,
+      jug,
       stock_status: stockStatus,
     });
 
-    logger.info(`Product created: ${product.id} - ${product.name}`);
+    logger.info(`Product created: ${product.id} - ${product.name} (SKU: ${sku}, JUG: ${jug})`);
 
     return await this.getProductById(product.id);
   }
@@ -526,6 +575,40 @@ export class ProductService {
     return await this.getProductById(id);
   }
 
+  /**
+   * Get unique brands from all products for autocomplete
+   */
+  static async getUniqueBrands(search?: string): Promise<string[]> {
+    const whereClause: WhereOptions = {
+      brand: {
+        [Op.and]: [
+          { [Op.ne]: null },
+          { [Op.ne]: '' },
+        ]
+      },
+    };
+
+    if (search) {
+      whereClause.brand = {
+        [Op.and]: [
+          { [Op.ne]: null },
+          { [Op.ne]: '' },
+          { [Op.like]: `%${search}%` }
+        ]
+      };
+    }
+
+    const products = await Product.findAll({
+      attributes: [[SequelizeStatic.fn('DISTINCT', SequelizeStatic.col('brand')), 'brand']],
+      where: whereClause,
+      order: [['brand', 'ASC']],
+      limit: 50,
+      raw: true,
+    });
+
+    return products.map((p: any) => p.brand).filter(Boolean);
+  }
+
   static async duplicateProduct(id: number): Promise<Product> {
     const product = await Product.findByPk(id, {
       include: [
@@ -546,7 +629,9 @@ export class ProductService {
       slug: '', // Will be auto-generated
       description: product.description,
       short_description: product.short_description,
-      sku: product.sku ? `${product.sku}-COPY` : undefined,
+      features: product.features,
+      sku: undefined, // Auto-generate new SKU
+      jug: product.jug, // Keep the same JUG (groups same products)
       price: product.price,
       compare_at_price: product.compare_at_price,
       cost_price: product.cost_price,
@@ -558,6 +643,8 @@ export class ProductService {
       is_featured: false, // Don't copy featured status
       is_published: false, // New product should be unpublished
       brand: product.brand,
+      eligible_for_return: product.eligible_for_return,
+      return_policy: product.return_policy,
       meta_title: product.meta_title,
       meta_description: product.meta_description,
       weight: product.weight,
