@@ -80,7 +80,9 @@ const startServer = async () => {
     await connectDatabase();
 
     // Connect to Redis
-    await connectRedis();
+    if(env.REDIS_ENABLED === 'true'){
+      await connectRedis();
+    }
 
     // Test S3 connection
     await testS3Connection();

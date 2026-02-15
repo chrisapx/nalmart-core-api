@@ -21,6 +21,8 @@ interface EnvConfig {
   REDIS_HOST: string;
   REDIS_PORT: number;
   REDIS_PASSWORD?: string;
+  REDIS_ENABLED?: string;
+
 
   // JWT
   JWT_SECRET: string;
@@ -76,6 +78,7 @@ const env: EnvConfig = {
   DB_PASSWORD: process.env.DB_PASSWORD || '',
 
   // Redis
+  REDIS_ENABLED: process.env.REDIS_ENABLED || 'false',
   REDIS_HOST: process.env.REDIS_HOST || 'localhost',
   REDIS_PORT: parseInt(process.env.REDIS_PORT || '6379', 10),
   REDIS_PASSWORD: process.env.REDIS_PASSWORD,
