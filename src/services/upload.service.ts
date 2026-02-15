@@ -4,6 +4,7 @@ import {
   GetObjectCommand,
   HeadObjectCommand,
   CopyObjectCommand,
+  PutObjectAclCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import s3Client, { getBucketName, buildS3Key, buildPublicUrl } from '../config/aws';
@@ -46,8 +47,7 @@ export class UploadService {
         Key: key,
         Body: file.buffer,
         ContentType: file.mimetype,
-        // Make files publicly readable
-        ACL: 'public-read',
+        ACL: 'public-read', // Make file publicly readable
         // Add metadata
         Metadata: {
           originalName: file.originalname,
@@ -193,7 +193,6 @@ export class UploadService {
         Bucket: getBucketName(),
         CopySource: `${getBucketName()}/${sourceKey}`,
         Key: destinationKey,
-        ACL: 'public-read',
       });
 
       await s3Client.send(command);
@@ -245,6 +244,25 @@ export class UploadService {
     } catch (error) {
       logger.error('❌ Error extracting key from URL:', error);
       return null;
+    }
+  }
+
+  /**
+   * Make an existing S3 object publicly readable
+   */
+  static async makeFilePublic(key: string): Promise<void> {
+    try {
+      const command = new PutObjectAclCommand({
+        Bucket: getBucketName(),
+        Key: key,
+        ACL: 'public-read',
+      });
+
+      await s3Client.send(command);
+      logger.info(`✅ File made public in S3: ${key}`);
+    } catch (error) {
+      logger.error('❌ Error making file public in S3:', error);
+      throw new Error('Failed to make file public in S3');
     }
   }
 

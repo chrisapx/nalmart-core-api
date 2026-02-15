@@ -2,16 +2,25 @@ import express, { Application, Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import passport from 'passport';
 import env from './config/env';
 import logger from './utils/logger';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { connectDatabase } from './config/database';
 import { connectRedis } from './config/redis';
 import { testS3Connection } from './config/aws';
+import './config/passport'; // Initialize Passport strategies
 import authRoutes from './routes/auth.routes';
+import userRoutes from './routes/user.routes';
 import uploadRoutes from './routes/upload.routes';
 import productRoutes from './routes/product.routes';
 import categoryRoutes from './routes/category.routes';
+import inventoryRoutes from './routes/inventory.routes';
+import orderRoutes from './routes/order.routes';
+import reviewRoutes from './routes/review.routes';
+import deliveryRoutes from './routes/delivery.routes';
+import favoriteRoutes from './routes/favorite.routes';
+import campaignRoutes from './routes/campaign.routes';
 
 const app: Application = express();
 
@@ -23,6 +32,9 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Initialize Passport
+app.use(passport.initialize());
 
 // Rate limiting
 const limiter = rateLimit({
@@ -44,11 +56,16 @@ app.get('/health', (req: Request, res: Response) => {
 
 // API routes
 app.use(`/api/${env.API_VERSION}/auth`, authRoutes);
+app.use(`/api/${env.API_VERSION}/users`, userRoutes);
 app.use(`/api/${env.API_VERSION}/upload`, uploadRoutes);
 app.use(`/api/${env.API_VERSION}/products`, productRoutes);
 app.use(`/api/${env.API_VERSION}/categories`, categoryRoutes);
-// app.use(`/api/${env.API_VERSION}/users`, userRoutes);
-// etc.
+app.use(`/api/${env.API_VERSION}/inventory`, inventoryRoutes);
+app.use(`/api/${env.API_VERSION}/orders`, orderRoutes);
+app.use(`/api/${env.API_VERSION}/reviews`, reviewRoutes);
+app.use(`/api/${env.API_VERSION}/deliveries`, deliveryRoutes);
+app.use(`/api/${env.API_VERSION}/favorites`, favoriteRoutes);
+app.use(`/api/${env.API_VERSION}/campaigns`, campaignRoutes);
 
 // 404 handler
 app.use(notFoundHandler);

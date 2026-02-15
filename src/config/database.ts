@@ -6,12 +6,28 @@ import Role from '../models/Role';
 import Permission from '../models/Permission';
 import UserRole from '../models/UserRole';
 import RolePermission from '../models/RolePermission';
+import LoginSession from '../models/LoginSession';
+import VerificationToken from '../models/VerificationToken';
 import Category from '../models/Category';
 import Product from '../models/Product';
 import ProductImage from '../models/ProductImage';
 import ProductVideo from '../models/ProductVideo';
+import Review from '../models/Review';
+import Currency from '../models/Currency';
 import Order from '../models/Order';
 import OrderItem from '../models/OrderItem';
+import Warehouse from '../models/Warehouse';
+import Inventory from '../models/Inventory';
+import InventoryBatch from '../models/InventoryBatch';
+import InventoryHistory from '../models/InventoryHistory';
+import InventoryAlert from '../models/InventoryAlert';
+import ReservedInventory from '../models/ReservedInventory';
+import Delivery from '../models/Delivery';
+import DeliveryMethod from '../models/DeliveryMethod';
+import DeliveryAddress from '../models/DeliveryAddress';
+import Favorite from '../models/Favorite';
+import Campaign from '../models/Campaign';
+import Promotion from '../models/Promotion';
 
 const sequelize = new Sequelize({
   host: env.DB_HOST,
@@ -37,12 +53,28 @@ const sequelize = new Sequelize({
     Permission,
     UserRole,
     RolePermission,
+    LoginSession,
+    VerificationToken,
     Category,
     Product,
     ProductImage,
     ProductVideo,
+    Review,
+    Currency,
     Order,
     OrderItem,
+    Warehouse,
+    Inventory,
+    InventoryBatch,
+    InventoryHistory,
+    InventoryAlert,
+    ReservedInventory,
+    Delivery,
+    DeliveryMethod,
+    DeliveryAddress,
+    Favorite,
+    Campaign,
+    Promotion,
   ],
 });
 

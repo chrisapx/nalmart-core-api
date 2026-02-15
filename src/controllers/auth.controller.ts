@@ -6,6 +6,8 @@ import { generateTokenPair, verifyRefreshToken, getTokenExpiry } from '../utils/
 import { blacklistToken, isTokenBlacklisted } from '../config/redis';
 import { sendSuccess, sendError } from '../utils/response';
 import { ValidationError, AuthenticationError, ConflictError } from '../utils/errors';
+import { SessionService } from '../services/session.service';
+import { VerificationService } from '../services/verification.service';
 import env from '../config/env';
 import logger from '../utils/logger';
 
@@ -46,10 +48,40 @@ export const register = async (
       email,
       password,
       phone,
+      account_verified: false,
     });
 
-    // Generate tokens
-    const tokens = generateTokenPair(user.id, user.email);
+    // Extract session info from request
+    const { ipAddress, userAgent } = SessionService.extractSessionInfo(req);
+
+    // Create login session
+    const session = await SessionService.createSession({
+      userId: user.id,
+      ipAddress,
+      userAgent,
+      expiresIn: 7 * 24 * 60 * 60, // 7 days
+    });
+
+    // Generate tokens with session ID
+    const tokens = generateTokenPair(
+      user.id,
+      session.session_id,
+      user.email,
+      user.account_verified
+    );
+
+    // Send verification email
+    try {
+      await VerificationService.sendEmailVerification(user);
+    } catch (error: any) {
+      logger.error('Failed to send verification email:', {
+        error: error.message,
+        stack: error.stack,
+        user_id: user.id,
+        user_email: user.email,
+      });
+      // Don't fail registration if email fails
+    }
 
     // Prepare response
     const response: AuthResponse = {
@@ -62,6 +94,7 @@ export const register = async (
         avatar_url: user.avatar_url,
         status: user.status,
         email_verified: user.email_verified,
+        account_verified: user.account_verified,
         created_at: user.created_at,
       },
       tokens: {
@@ -69,10 +102,11 @@ export const register = async (
         refresh_token: tokens.refresh_token,
         expires_in: env.JWT_EXPIRES_IN,
       },
+      requires_verification: !user.account_verified,
     };
 
     logger.info(`User registered successfully: ${user.email}`);
-    sendSuccess(res, response, 'User registered successfully', 201);
+    sendSuccess(res, response, 'User registered successfully. Please verify your email or phone.', 201);
   } catch (error) {
     next(error);
   }
@@ -91,10 +125,14 @@ export const login = async (
       throw new ValidationError('Email and password are required');
     }
 
-    // Find user by email
-    const user = await User.findOne({ where: { email } });
+    // Find user by email (or phone if it looks like a phone number)
+    const isPhone = /^\+?\d{10,15}$/.test(email);
+    const user = await User.findOne({
+      where: isPhone ? { phone: email } : { email },
+    });
+
     if (!user) {
-      throw new AuthenticationError('Invalid email or password');
+      throw new AuthenticationError('Invalid credentials');
     }
 
     // Check if user is active
@@ -105,16 +143,32 @@ export const login = async (
     // Verify password
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
-      throw new AuthenticationError('Invalid email or password');
+      throw new AuthenticationError('Invalid credentials');
     }
+
+    // Extract session info from request
+    const { ipAddress, userAgent } = SessionService.extractSessionInfo(req);
 
     // Update last login
     user.last_login_at = new Date();
-    user.last_login_ip = req.ip || req.socket.remoteAddress || '';
+    user.last_login_ip = ipAddress;
     await user.save();
 
-    // Generate tokens
-    const tokens = generateTokenPair(user.id, user.email);
+    // Create login session
+    const session = await SessionService.createSession({
+      userId: user.id,
+      ipAddress,
+      userAgent,
+      expiresIn: 7 * 24 * 60 * 60, // 7 days
+    });
+
+    // Generate tokens with session ID
+    const tokens = generateTokenPair(
+      user.id,
+      session.session_id,
+      user.email,
+      user.account_verified
+    );
 
     // Prepare response
     const response: AuthResponse = {
@@ -127,6 +181,7 @@ export const login = async (
         avatar_url: user.avatar_url,
         status: user.status,
         email_verified: user.email_verified,
+        account_verified: user.account_verified,
         created_at: user.created_at,
       },
       tokens: {
@@ -134,6 +189,7 @@ export const login = async (
         refresh_token: tokens.refresh_token,
         expires_in: env.JWT_EXPIRES_IN,
       },
+      requires_verification: !user.account_verified,
     };
 
     logger.info(`User logged in successfully: ${user.email}`);
@@ -162,6 +218,16 @@ export const logout = async (
       if (ttl > 0) {
         // Add token to blacklist with TTL
         await blacklistToken(token, ttl);
+      }
+    }
+
+    // Revoke session if sessionId available
+    if (req.user && (req as any).sessionId) {
+      try {
+        await SessionService.revokeSession((req as any).sessionId, 'User logout');
+      } catch (error) {
+        logger.error('Failed to revoke session:', error);
+        // Don't fail logout if session revocation fails
       }
     }
 
@@ -204,8 +270,24 @@ export const refreshToken = async (
       throw new AuthenticationError('User account is not active');
     }
 
-    // Generate new token pair
-    const tokens = generateTokenPair(user.id, user.email);
+    // Verify session is still valid
+    const sessionId = decoded.sessionId;
+    if (sessionId) {
+      const isSessionValid = await SessionService.isSessionValid(sessionId);
+      if (!isSessionValid) {
+        throw new AuthenticationError('Session has been revoked');
+      }
+      // Update session activity
+      await SessionService.updateActivity(sessionId);
+    }
+
+    // Generate new token pair with same session ID
+    const tokens = generateTokenPair(
+      user.id,
+      sessionId,
+      user.email,
+      user.account_verified
+    );
 
     // Blacklist old refresh token
     const oldTokenExpiry = getTokenExpiry(refresh_token);
@@ -246,4 +328,234 @@ export const getProfile = async (
   } catch (error) {
     next(error);
   }
+};
+
+// ============================================================================
+// VERIFICATION ENDPOINTS
+// ============================================================================
+
+export const verifyEmail = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { code } = req.body;
+    const userId = req.userId;
+
+    if (!userId) {
+      throw new AuthenticationError('User not authenticated');
+    }
+
+    if (!code) {
+      throw new ValidationError('Verification code is required');
+    }
+
+    await VerificationService.verifyEmail(userId, code);
+
+    sendSuccess(res, null, 'Email verified successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const verifyPhone = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { code } = req.body;
+    const userId = req.userId;
+
+    if (!userId) {
+      throw new AuthenticationError('User not authenticated');
+    }
+
+    if (!code) {
+      throw new ValidationError('Verification code is required');
+    }
+
+    await VerificationService.verifyPhone(userId, code);
+
+    sendSuccess(res, null, 'Phone verified successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const resendVerification = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { type } = req.body;
+    const userId = req.userId;
+
+    if (!userId) {
+      throw new AuthenticationError('User not authenticated');
+    }
+
+    if (!type || !['email', 'phone'].includes(type)) {
+      throw new ValidationError('Type must be either "email" or "phone"');
+    }
+
+    await VerificationService.resendVerification(userId, type);
+
+    sendSuccess(res, null, `Verification code sent to your ${type}`);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ============================================================================
+// SESSION MANAGEMENT ENDPOINTS
+// ============================================================================
+
+export const getActiveSessions = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const userId = req.userId;
+
+    if (!userId) {
+      throw new AuthenticationError('User not authenticated');
+    }
+
+    const sessions = await SessionService.getActiveSessions(userId);
+
+    sendSuccess(res, sessions, 'Active sessions retrieved successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const revokeSession = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const sessionId = Array.isArray(req.params.sessionId)
+      ? req.params.sessionId[0]
+      : req.params.sessionId;
+
+    if (!sessionId) {
+      throw new ValidationError('Session ID is required');
+    }
+
+    await SessionService.revokeSession(sessionId, 'User revoked session');
+
+    sendSuccess(res, null, 'Session revoked successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const logoutAllDevices = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const userId = req.userId;
+    const currentSessionId = (req as any).sessionId;
+
+    if (!userId) {
+      throw new AuthenticationError('User not authenticated');
+    }
+
+    // Revoke all sessions except current
+    const revokedCount = await SessionService.revokeAllSessions(userId, currentSessionId);
+
+    sendSuccess(
+      res,
+      { revoked_count: revokedCount },
+      `Logged out from ${revokedCount} device(s)`
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getSessionStats = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const userId = req.userId;
+
+    if (!userId) {
+      throw new AuthenticationError('User not authenticated');
+    }
+
+    const stats = await SessionService.getSessionStats(userId);
+
+    sendSuccess(res, stats, 'Session statistics retrieved successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Google OAuth callback handler
+ * Called after successful Google authentication
+ */
+export const googleCallback = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const user = req.user as User;
+
+    if (!user) {
+      throw new AuthenticationError('Google authentication failed');
+    }
+
+    // Extract session info from request
+    const { ipAddress, userAgent } = SessionService.extractSessionInfo(req);
+
+    // Update last login
+    user.last_login_at = new Date();
+    user.last_login_ip = ipAddress;
+    await user.save();
+
+    // Create login session
+    const session = await SessionService.createSession({
+      userId: user.id,
+      ipAddress,
+      userAgent,
+      expiresIn: 7 * 24 * 60 * 60, // 7 days
+    });
+
+    // Generate tokens with session ID
+    const tokens = generateTokenPair(
+      user.id,
+      session.session_id,
+      user.email,
+      user.account_verified
+    );
+
+    // Redirect to frontend with tokens
+    const frontendUrl = env.FRONTEND_URL || 'http://localhost:5173';
+    const redirectUrl = `${frontendUrl}/auth/google/callback?access_token=${tokens.access_token}&refresh_token=${tokens.refresh_token}`;
+
+    res.redirect(redirectUrl);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Initiate Google OAuth flow
+ * This will be handled by passport middleware
+ */
+export const googleAuth = (req: Request, res: Response, next: NextFunction): void => {
+  // This is a placeholder - actual authentication is handled by passport middleware
+  next();
 };

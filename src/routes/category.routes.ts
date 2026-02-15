@@ -40,31 +40,25 @@ router.get('/:id/path', getCategoryPath);
 // Protected endpoints
 router.post(
   '/',
-  authenticate,
-  authorize('CREATE_CATEGORY'),
   validateBody(createCategorySchema),
   createCategory
 );
 
 router.put(
   '/:id',
-  authenticate,
-  authorize('UPDATE_CATEGORY'),
   validateBody(updateCategorySchema),
   updateCategory
 );
 
 router.delete(
   '/:id',
-  authenticate,
+  authenticate,  // 🔒 ACTIVE RBAC TEST ENDPOINT
   authorize('DELETE_CATEGORY'),
   deleteCategory
 );
 
 router.post(
   '/reorder',
-  authenticate,
-  authorize('REORDER_CATEGORY'),
   reorderCategories
 );
 

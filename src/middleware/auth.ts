@@ -48,6 +48,7 @@ export const authenticate = async (
     req.user = user;
     req.userId = user.id;
     req.token = token;
+    (req as any).sessionId = decoded.sessionId; // Attach session ID for tracking
 
     next();
   } catch (error) {

@@ -1,8 +1,8 @@
 import dotenv from 'dotenv';
 import path from 'path';
 
-// Load environment variables
-dotenv.config({ path: path.join(__dirname, '../../.env') });
+// Load environment variables (override any existing env vars)
+dotenv.config({ path: path.join(__dirname, '../../.env'), override: true });
 
 interface EnvConfig {
   // Application
@@ -35,6 +35,21 @@ interface EnvConfig {
   AWS_SECRET_ACCESS_KEY: string;
   AWS_ROOT_PATH?: string;
   CDN_URL?: string;
+
+  // Email/SMTP
+  SMTP_HOST: string;
+  SMTP_PORT: number;
+  SMTP_USER: string;
+  SMTP_PASSWORD: string;
+  EMAIL_FROM: string;
+
+  // Google OAuth
+  GOOGLE_CLIENT_ID?: string;
+  GOOGLE_CLIENT_SECRET?: string;
+  GOOGLE_CALLBACK_URL?: string;
+
+  // Frontend
+  FRONTEND_URL?: string;
 
   // CORS
   ALLOWED_ORIGINS: string[];
@@ -78,6 +93,21 @@ const env: EnvConfig = {
   AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY || '',
   AWS_ROOT_PATH: process.env.AWS_ROOT_PATH,
   CDN_URL: process.env.CDN_URL,
+
+  // Email/SMTP
+  SMTP_HOST: process.env.SMTP_HOST || 'smtp.gmail.com',
+  SMTP_PORT: parseInt(process.env.SMTP_PORT || '587', 10),
+  SMTP_USER: process.env.SMTP_USER || '',
+  SMTP_PASSWORD: process.env.SMTP_PASSWORD || '',
+  EMAIL_FROM: process.env.EMAIL_FROM || 'noreply@nalmart.com',
+
+  // Google OAuth
+  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+  GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+  GOOGLE_CALLBACK_URL: process.env.GOOGLE_CALLBACK_URL,
+
+  // Frontend
+  FRONTEND_URL: process.env.FRONTEND_URL,
 
   // CORS
   ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS

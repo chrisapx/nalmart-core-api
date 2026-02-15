@@ -78,6 +78,15 @@ export const roles: RoleData[] = [
       'DELETE_COUPON',
       'APPLY_COUPON',
       'VIEW_COUPON_USAGE',
+      // Campaigns
+      'VIEW_CAMPAIGN',
+      'CREATE_CAMPAIGN',
+      'UPDATE_CAMPAIGN',
+      'DELETE_CAMPAIGN',
+      'PUBLISH_CAMPAIGN',
+      'VIEW_CAMPAIGN_ANALYTICS',
+      'CREATE_PROMOTION',
+      'APPLY_PROMOTION',
       // Reviews
       'VIEW_REVIEW',
       'MANAGE_REVIEW',

@@ -106,13 +106,6 @@ export default class Order extends Model {
   total_amount!: number;
 
   @Column({
-    type: DataType.STRING(10),
-    allowNull: false,
-    defaultValue: 'USD',
-  })
-  currency!: string;
-
-  @Column({
     type: DataType.STRING(100),
     allowNull: true,
   })

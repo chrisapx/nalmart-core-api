@@ -87,7 +87,7 @@ export const uploadProductImages = async (
 ): Promise<void> => {
   try {
     const files = req.files as Express.Multer.File[];
-    const { product_id } = req.body;
+    const { product_id, image_type } = req.body;
 
     if (!files || files.length === 0) {
       throw new BadRequestError('No files uploaded');
@@ -95,6 +95,13 @@ export const uploadProductImages = async (
 
     if (!product_id) {
       throw new BadRequestError('Product ID is required');
+    }
+
+    // Validate image_type
+    const validImageTypes = ['cover', 'gallery', 'demo'];
+    const imageType = image_type || 'gallery';
+    if (!validImageTypes.includes(imageType)) {
+      throw new BadRequestError('Invalid image_type. Must be: cover, gallery, or demo');
     }
 
     // Validate all files
@@ -113,7 +120,8 @@ export const uploadProductImages = async (
           alt_text: result.originalName.replace(/\.[^/.]+$/, ''), // Remove extension
           size: result.size,
           mime_type: result.mimeType,
-          is_primary: index === 0, // First image is primary
+          is_primary: imageType === 'cover' && index === 0,
+          image_type: imageType,
           sort_order: index,
         });
         return productImage;
@@ -366,6 +374,44 @@ export const healthCheck = async (
   }
 };
 
+/**
+ * Make an S3 file publicly readable
+ * Usage: POST /api/upload/make-public with { "url": "https://..." }
+ */
+export const makeFilePublic = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { url } = req.body;
+
+    if (!url) {
+      throw new BadRequestError('URL is required');
+    }
+
+    // Extract S3 key from URL
+    const key = UploadService.extractKeyFromUrl(url);
+    if (!key) {
+      throw new BadRequestError('Invalid S3 URL');
+    }
+
+    // Make file public
+    await UploadService.makeFilePublic(key);
+
+    res.status(200).json({
+      success: true,
+      message: 'File made public successfully',
+      data: {
+        key,
+        url,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export default {
   uploadSingleImage,
   uploadMultipleImages,
@@ -376,5 +422,6 @@ export default {
   deleteProductImage,
   getSignedUrl,
   getFileMetadata,
+  makeFilePublic,
   healthCheck,
 };

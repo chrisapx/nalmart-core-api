@@ -201,3 +201,77 @@ export const canAccess = (
     }
   };
 };
+
+/**
+ * Optional Authorization (COMMENTED OUT BY DEFAULT)
+ * Use this when you want to add permission checks but keep them disabled initially
+ * 
+ * @param requiredPermission - Single permission slug or array of permission slugs
+ * @param requireAll - If true, user must have ALL permissions. If false, user needs ANY permission.
+ * 
+ * @example
+ * // Add to routes but keep commented in middleware
+ * router.delete('/products/:id', authenticate, authorizeOptional('DELETE_PRODUCT'), deleteProduct);
+ */
+export const authorizeOptional = (
+  requiredPermission: string | string[],
+  requireAll: boolean = false
+) => {
+  return async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = req.user;
+
+      if (!user) {
+        throw new ForbiddenError('User not authenticated');
+      }
+
+      // ====================================================================
+      // 🔒 PERMISSION CHECK (COMMENTED OUT - Uncomment to enable RBAC)
+      // ====================================================================
+      
+      /*
+      // Convert single permission to array
+      const permissions = Array.isArray(requiredPermission)
+        ? requiredPermission
+        : [requiredPermission];
+
+      let hasAccess = false;
+
+      if (requireAll) {
+        // User must have ALL permissions
+        hasAccess = await PermissionService.hasAllPermissions(user, permissions);
+      } else {
+        // User needs ANY of the permissions
+        hasAccess = await PermissionService.hasAnyPermission(user, permissions);
+      }
+
+      if (!hasAccess) {
+        logger.warn(
+          `Access denied for user ${user.email}: Required permission(s) ${permissions.join(', ')}`
+        );
+        throw new ForbiddenError('You do not have permission to perform this action');
+      }
+
+      logger.debug(`Access granted for user ${user.email}: ${permissions.join(', ')}`);
+      */
+
+      // For now, allow all authenticated users (permission checking disabled)
+      next();
+    } catch (error) {
+      if (error instanceof ForbiddenError) {
+        res.status(403).json({
+          success: false,
+          message: error.message,
+          statusCode: 403,
+        });
+      } else {
+        logger.error('Authorization error:', error);
+        res.status(500).json({
+          success: false,
+          message: 'Authorization check failed',
+          statusCode: 500,
+        });
+      }
+    }
+  };
+};

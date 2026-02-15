@@ -370,3 +370,33 @@ export const toggleFeaturedSchema = Joi.object({
     'any.required': 'Is featured is required',
   }),
 });
+/**
+ * Schema for media deletion during product update
+ * Allows specifying which images and videos to delete
+ */
+export const mediaDeleteSchema = Joi.object({
+  deletedImageIds: Joi.array().items(Joi.number().integer()).optional().messages({
+    'array.base': 'Deleted image IDs must be an array',
+    'number.base': 'Each image ID must be a number',
+  }),
+
+  deletedVideoIds: Joi.array().items(Joi.number().integer()).optional().messages({
+    'array.base': 'Deleted video IDs must be an array',
+    'number.base': 'Each video ID must be a number',
+  }),
+});
+
+/**
+ * Extended update product schema that includes media deletion
+ */
+export const updateProductWithMediaSchema = updateProductSchema.keys({
+  deletedImageIds: Joi.array().items(Joi.number().integer()).optional().messages({
+    'array.base': 'Deleted image IDs must be an array',
+    'number.base': 'Each image ID must be a number',
+  }),
+
+  deletedVideoIds: Joi.array().items(Joi.number().integer()).optional().messages({
+    'array.base': 'Deleted video IDs must be an array',
+    'number.base': 'Each video ID must be a number',
+  }),
+});

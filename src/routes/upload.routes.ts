@@ -11,6 +11,7 @@ import {
   deleteProductImage,
   getSignedUrl,
   getFileMetadata,
+  makeFilePublic,
   healthCheck,
 } from '../controllers/upload.controller';
 import {
@@ -62,8 +63,8 @@ router.post(
  */
 router.post(
   '/product-images',
-  authenticate,
-  authorize('UPLOAD_PRODUCT_IMAGES'),
+  // authenticate,  // Disabled for development
+  // authorize('UPLOAD_PRODUCT_IMAGES'),
   multerProductImages,
   handleMulterError,
   uploadProductImages
@@ -76,8 +77,8 @@ router.post(
  */
 router.post(
   '/category-image',
-  authenticate,
-  authorize('UPLOAD_CATEGORY_IMAGES'),
+  // authenticate,  // Disabled for development
+  // authorize('UPLOAD_CATEGORY_IMAGES'),
   multerSingleImage,
   handleMulterError,
   uploadCategoryImage
@@ -90,7 +91,7 @@ router.post(
  */
 router.post(
   '/avatar',
-  authenticate,
+  // authenticate,  // Disabled for development
   multerSingleImage,
   handleMulterError,
   uploadUserAvatar
@@ -101,7 +102,7 @@ router.post(
  * @desc    Delete an image from S3
  * @access  Private - Requires authentication
  */
-router.delete('/image', authenticate, deleteImage);
+router.delete('/image', /* authenticate, */ deleteImage);  // Disabled for development
 
 /**
  * @route   DELETE /api/v1/upload/product-image/:id
@@ -110,8 +111,8 @@ router.delete('/image', authenticate, deleteImage);
  */
 router.delete(
   '/product-image/:id',
-  authenticate,
-  authorize('DELETE_PRODUCT_IMAGES'),
+  // authenticate,  // Disabled for development
+  // authorize('DELETE_PRODUCT_IMAGES'),
   deleteProductImage
 );
 
@@ -128,5 +129,12 @@ router.get('/signed-url', authenticate, getSignedUrl);
  * @access  Private - Requires authentication
  */
 router.get('/metadata', authenticate, getFileMetadata);
+
+/**
+ * @route   POST /api/v1/upload/make-public
+ * @desc    Make an existing S3 file publicly readable
+ * @access  Private - Requires authentication
+ */
+router.post('/make-public', authenticate, makeFilePublic);
 
 export default router;

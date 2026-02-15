@@ -14,6 +14,8 @@ import {
 import bcrypt from 'bcrypt';
 import Role from './Role';
 import UserRole from './UserRole';
+import LoginSession from './LoginSession';
+import VerificationToken from './VerificationToken';
 
 @Table({
   tableName: 'users',
@@ -88,6 +90,52 @@ export default class User extends Model {
   email_verified_at!: Date;
 
   @Column({
+    type: DataType.BOOLEAN,
+    defaultValue: false,
+  })
+  phone_verified!: boolean;
+
+  @Column({
+    type: DataType.DATE,
+    allowNull: true,
+  })
+  phone_verified_at!: Date;
+
+  @Column({
+    type: DataType.BOOLEAN,
+    defaultValue: false,
+    comment: 'Account is verified if email OR phone is verified',
+  })
+  account_verified!: boolean;
+
+  @Column({
+    type: DataType.ENUM('email', 'phone', 'google', 'none'),
+    defaultValue: 'none',
+    comment: 'Primary verification method used',
+  })
+  verification_method!: string;
+
+  // Google OAuth fields
+  @Column({
+    type: DataType.STRING(255),
+    allowNull: true,
+    unique: true,
+  })
+  google_id!: string;
+
+  @Column({
+    type: DataType.STRING(255),
+    allowNull: true,
+  })
+  google_email!: string;
+
+  @Column({
+    type: DataType.STRING(500),
+    allowNull: true,
+  })
+  google_avatar!: string | null;
+
+  @Column({
     type: DataType.DATE,
     allowNull: true,
   })
@@ -111,6 +159,12 @@ export default class User extends Model {
   // Associations
   @BelongsToMany(() => Role, () => UserRole)
   roles!: Role[];
+
+  @HasMany(() => LoginSession)
+  sessions!: LoginSession[];
+
+  @HasMany(() => VerificationToken)
+  verificationTokens!: VerificationToken[];
 
   // Hooks
   @BeforeCreate

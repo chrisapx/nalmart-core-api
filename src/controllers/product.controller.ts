@@ -3,6 +3,7 @@ import { AuthRequest } from '../types/express';
 import { ProductService } from '../services/product.service';
 import { successResponse } from '../utils/response';
 import logger from '../utils/logger';
+import { NotFoundError } from '../utils/errors';
 
 export const createProduct = async (
   req: AuthRequest,
@@ -10,9 +11,30 @@ export const createProduct = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const product = await ProductService.createProduct(req.body);
+    // Handle both JSON and multipart/form-data requests
+    let productData = req.body;
+    
+    // If this is a multipart request, the JSON data is in req.body.data as a string
+    if (req.body.data && typeof req.body.data === 'string') {
+      try {
+        productData = JSON.parse(req.body.data);
+      } catch (error) {
+        res.status(400).json({
+          success: false,
+          message: 'Invalid JSON in data field',
+          error: (error as Error).message,
+        });
+        return;
+      }
+    }
 
-    successResponse(res, product, 'Product created successfully', 201);
+    const product = await ProductService.createProduct(productData, req.files, req.body);
+
+    res.status(201).json({
+      success: true,
+      message: 'Product created successfully with media',
+      data: product,
+    });
   } catch (error) {
     next(error);
   }
@@ -24,7 +46,21 @@ export const getProducts = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const result = await ProductService.getProducts(req.query);
+    // Parse query parameters with proper types
+    const query = {
+      ...req.query,
+      page: req.query.page ? parseInt(req.query.page as string, 10) : undefined,
+      limit: req.query.limit ? parseInt(req.query.limit as string, 10) : undefined,
+      category_id: req.query.category_id ? parseInt(req.query.category_id as string, 10) : undefined,
+      is_active: req.query.is_active === 'true' ? true : req.query.is_active === 'false' ? false : undefined,
+      is_featured: req.query.is_featured === 'true' ? true : req.query.is_featured === 'false' ? false : undefined,
+      is_published: req.query.is_published === 'true' ? true : req.query.is_published === 'false' ? false : undefined,
+      min_price: req.query.min_price ? parseFloat(req.query.min_price as string) : undefined,
+      max_price: req.query.max_price ? parseFloat(req.query.max_price as string) : undefined,
+      min_rating: req.query.min_rating ? parseFloat(req.query.min_rating as string) : undefined,
+    };
+
+    const result = await ProductService.getProducts(query);
 
     successResponse(res, result.data, 'Products retrieved successfully', 200, {
       pagination: result.pagination,
@@ -40,8 +76,9 @@ export const getProductById = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const idParam = req.params.id;
-    const productId = parseInt(typeof idParam === 'string' ? idParam : idParam[0], 10);
+    // Validation middleware already converts id to number
+    const id = req.params.id;
+    const productId = typeof id === 'number' ? id : parseInt(Array.isArray(id) ? id[0] : id, 10);
     const product = await ProductService.getProductById(productId);
 
     await ProductService.incrementViewCount(productId);
@@ -76,11 +113,33 @@ export const updateProduct = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const idParam = req.params.id;
-    const productId = parseInt(typeof idParam === 'string' ? idParam : idParam[0], 10);
-    const product = await ProductService.updateProduct(productId, req.body);
+    const id = req.params.id;
+    const productId = typeof id === 'number' ? id : parseInt(Array.isArray(id) ? id[0] : id, 10);
+    
+    // Handle both JSON and multipart/form-data requests
+    let productData = req.body;
+    
+    // If this is a multipart request, the JSON data is in req.body.data as a string
+    if (req.body.data && typeof req.body.data === 'string') {
+      try {
+        productData = JSON.parse(req.body.data);
+      } catch (error) {
+        res.status(400).json({
+          success: false,
+          message: 'Invalid JSON in data field',
+          error: (error as Error).message,
+        });
+        return;
+      }
+    }
 
-    successResponse(res, product, 'Product updated successfully');
+    const product = await ProductService.updateProduct(productId, productData, req.files, req.body);
+
+    res.status(200).json({
+      success: true,
+      message: 'Product updated successfully',
+      data: product,
+    });
   } catch (error) {
     next(error);
   }
@@ -92,8 +151,8 @@ export const deleteProduct = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const idParam = req.params.id;
-    const productId = parseInt(typeof idParam === 'string' ? idParam : idParam[0], 10);
+    const id = req.params.id;
+    const productId = typeof id === 'number' ? id : parseInt(Array.isArray(id) ? id[0] : id, 10);
     await ProductService.deleteProduct(productId);
 
     successResponse(res, null, 'Product deleted successfully');
@@ -108,8 +167,8 @@ export const updateStock = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const idParam = req.params.id;
-    const productId = parseInt(typeof idParam === 'string' ? idParam : idParam[0], 10);
+    const id = req.params.id;
+    const productId = typeof id === 'number' ? id : parseInt(Array.isArray(id) ? id[0] : id, 10);
     const { stock_quantity, stock_status } = req.body;
 
     const product = await ProductService.updateStock(
@@ -152,8 +211,8 @@ export const getRelatedProducts = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const idParam = req.params.id;
-    const productId = parseInt(typeof idParam === 'string' ? idParam : idParam[0], 10);
+    const id = req.params.id;
+    const productId = typeof id === 'number' ? id : parseInt(Array.isArray(id) ? id[0] : id, 10);
     let limit = 4;
     if (req.query.limit) {
       const limitParam = req.query.limit;
@@ -202,8 +261,8 @@ export const togglePublishProduct = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const idParam = req.params.id;
-    const productId = parseInt(typeof idParam === 'string' ? idParam : idParam[0], 10);
+    const id = req.params.id;
+    const productId = typeof id === 'number' ? id : parseInt(Array.isArray(id) ? id[0] : id, 10);
 
     if (isNaN(productId)) {
       throw new Error('Invalid product ID');
@@ -229,8 +288,8 @@ export const toggleFeaturedProduct = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const idParam = req.params.id;
-    const productId = parseInt(typeof idParam === 'string' ? idParam : idParam[0], 10);
+    const id = req.params.id;
+    const productId = typeof id === 'number' ? id : parseInt(Array.isArray(id) ? id[0] : id, 10);
 
     if (isNaN(productId)) {
       throw new Error('Invalid product ID');
@@ -256,8 +315,8 @@ export const duplicateProduct = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const idParam = req.params.id;
-    const productId = parseInt(typeof idParam === 'string' ? idParam : idParam[0], 10);
+    const id = req.params.id;
+    const productId = typeof id === 'number' ? id : parseInt(Array.isArray(id) ? id[0] : id, 10);
 
     if (isNaN(productId)) {
       throw new Error('Invalid product ID');
@@ -286,3 +345,52 @@ export const getUniqueBrands = async (
     next(error);
   }
 };
+
+/**
+ * Delete a product image
+ */
+export const deleteProductImage = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const imageId = req.params.imageId;
+    const id = typeof imageId === 'number' ? imageId : parseInt(Array.isArray(imageId) ? imageId[0] : imageId, 10);
+
+    if (isNaN(id)) {
+      throw new Error('Invalid image ID');
+    }
+
+    await ProductService.deleteProductImage(id);
+
+    successResponse(res, null, 'Product image deleted successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Delete a product video
+ */
+export const deleteProductVideo = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const videoId = req.params.videoId;
+    const id = typeof videoId === 'number' ? videoId : parseInt(Array.isArray(videoId) ? videoId[0] : videoId, 10);
+
+    if (isNaN(id)) {
+      throw new Error('Invalid video ID');
+    }
+
+    await ProductService.deleteProductVideo(id);
+
+    successResponse(res, null, 'Product video deleted successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+

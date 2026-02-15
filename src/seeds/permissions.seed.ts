@@ -99,6 +99,18 @@ export const permissions = [
   { name: 'View Coupon Usage', slug: 'VIEW_COUPON_USAGE', category: 'Coupons', description: 'View coupon usage statistics' },
   { name: 'Export Coupons', slug: 'EXPORT_COUPONS', category: 'Coupons', description: 'Export coupon data' },
 
+  // Campaign Management (10)
+  { name: 'View Campaigns', slug: 'VIEW_CAMPAIGN', category: 'Campaigns', description: 'View campaign list' },
+  { name: 'Create Campaign', slug: 'CREATE_CAMPAIGN', category: 'Campaigns', description: 'Create new campaigns' },
+  { name: 'Update Campaign', slug: 'UPDATE_CAMPAIGN', category: 'Campaigns', description: 'Update campaign details' },
+  { name: 'Delete Campaign', slug: 'DELETE_CAMPAIGN', category: 'Campaigns', description: 'Delete campaigns' },
+  { name: 'Manage Campaigns', slug: 'MANAGE_CAMPAIGN', category: 'Campaigns', description: 'Full campaign management' },
+  { name: 'Publish Campaign', slug: 'PUBLISH_CAMPAIGN', category: 'Campaigns', description: 'Publish/unpublish campaigns' },
+  { name: 'View Campaign Analytics', slug: 'VIEW_CAMPAIGN_ANALYTICS', category: 'Campaigns', description: 'View campaign performance' },
+  { name: 'Create Promotion', slug: 'CREATE_PROMOTION', category: 'Campaigns', description: 'Create promotion codes' },
+  { name: 'Apply Promotion', slug: 'APPLY_PROMOTION', category: 'Campaigns', description: 'Apply promotions to orders' },
+  { name: 'Export Campaigns', slug: 'EXPORT_CAMPAIGNS', category: 'Campaigns', description: 'Export campaign data' },
+
   // Review Management (8)
   { name: 'View Reviews', slug: 'VIEW_REVIEW', category: 'Reviews', description: 'View product reviews' },
   { name: 'Create Review', slug: 'CREATE_REVIEW', category: 'Reviews', description: 'Write product reviews' },

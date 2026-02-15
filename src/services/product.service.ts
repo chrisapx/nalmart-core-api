@@ -3,8 +3,10 @@ import sequelize from '../config/database';
 import Product from '../models/Product';
 import Category from '../models/Category';
 import ProductImage from '../models/ProductImage';
+import ProductVideo from '../models/ProductVideo';
 import { NotFoundError, BadRequestError } from '../utils/errors';
 import logger from '../utils/logger';
+import { UploadService } from './upload.service';
 
 interface CreateProductInput {
   name: string;
@@ -33,6 +35,24 @@ interface CreateProductInput {
   dimensions?: { length: number; width: number; height: number };
   metadata?: Record<string, unknown>;
 }
+
+interface MediaData {
+  coverImage?: string;
+  gallery?: Array<{ url: string; name: string; alt_text?: string }>;
+  demoImages?: Array<{ url: string; name: string; alt_text?: string }>;
+  demoVideos?: Array<{ url: string; title: string; platform?: string; external_id?: string }>;
+  galleryVideos?: Array<{ url: string; title: string; platform?: string; external_id?: string }>;
+}
+
+interface MediaData {
+  coverImage?: string;
+  gallery?: Array<{ url: string; name: string; alt_text?: string }>;
+  demoImages?: Array<{ url: string; name: string; alt_text?: string }>;
+  demoVideos?: Array<{ url: string; title: string; platform?: string; external_id?: string }>;
+  galleryVideos?: Array<{ url: string; title: string; platform?: string; external_id?: string }>;
+}
+
+interface UpdateProductInput extends Partial<CreateProductInput> {}
 
 interface UpdateProductInput extends Partial<CreateProductInput> {}
 
@@ -71,6 +91,252 @@ interface PaginatedResponse<T> {
 }
 
 export class ProductService {
+  /**
+   * Organize product media by type for API responses
+   */
+  static organizeProductMedia(
+    product: any
+  ): any {
+    const organized = { ...product.toJSON ? product.toJSON() : product };
+
+    // Initialize media fields
+    organized.coverImage = null;
+    organized.gallery = [];
+    organized.demoImages = [];
+    organized.demoVideos = [];
+    organized.galleryVideos = [];
+
+    // Organize images by type
+    if (product.images && Array.isArray(product.images)) {
+      for (const image of product.images) {
+        if (image.image_type === 'cover' || image.is_primary) {
+          organized.coverImage = {
+            id: image.id,
+            url: image.url,
+            name: image.name,
+            alt_text: image.alt_text,
+            sort_order: image.sort_order,
+            width: image.width,
+            height: image.height,
+            size: image.size,
+            mime_type: image.mime_type,
+          };
+        } else if (image.image_type === 'demo') {
+          organized.demoImages.push({
+            id: image.id,
+            url: image.url,
+            name: image.name,
+            alt_text: image.alt_text,
+            sort_order: image.sort_order,
+            width: image.width,
+            height: image.height,
+            size: image.size,
+            mime_type: image.mime_type,
+          });
+        } else {
+          // Default to gallery
+          organized.gallery.push({
+            id: image.id,
+            url: image.url,
+            name: image.name,
+            alt_text: image.alt_text,
+            sort_order: image.sort_order,
+            width: image.width,
+            height: image.height,
+            size: image.size,
+            mime_type: image.mime_type,
+          });
+        }
+      }
+    }
+
+    // Organize videos by type
+    if (product.videos && Array.isArray(product.videos)) {
+      for (const video of product.videos) {
+        const videoData = {
+          id: video.id,
+          url: video.url,
+          title: video.title,
+          description: video.description,
+          thumbnail_url: video.thumbnail_url,
+          duration: video.duration,
+          platform: video.platform,
+          external_id: video.external_id,
+          sort_order: video.sort_order,
+          size: video.size,
+          mime_type: video.mime_type,
+        };
+
+        if (video.video_type === 'demo' || video.video_type === 'tutorial') {
+          organized.demoVideos.push(videoData);
+        } else {
+          organized.galleryVideos.push(videoData);
+        }
+      }
+    }
+
+    return organized;
+  }
+
+  /**
+   * Upload product media files (images and videos)
+   */
+  static async uploadProductMedia(
+    productId: number,
+    files?: Express.Multer.File[] | Record<string, Express.Multer.File[]>
+  ): Promise<void> {
+    if (!files) return;
+
+    const fileRecord = files as Record<string, Express.Multer.File[]>;
+
+    // Upload images
+    if (fileRecord.image_files && Array.isArray(fileRecord.image_files)) {
+      const imageFiles = fileRecord.image_files;
+      let isFirstImage = true;
+
+      for (let i = 0; i < imageFiles.length; i++) {
+        const file = imageFiles[i];
+        const uploadResult = await UploadService.uploadFile(file, 'products/images');
+
+        // Determine image type from metadata if provided
+        let imageType: 'cover' | 'gallery' | 'demo' = 'gallery';
+        let altText = '';
+
+        // The first image is the cover by default
+        if (isFirstImage) {
+          imageType = 'cover';
+          isFirstImage = false;
+        }
+
+        await ProductImage.create({
+          product_id: productId,
+          url: uploadResult.url,
+          name: file.originalname,
+          alt_text: altText,
+          size: uploadResult.size,
+          mime_type: uploadResult.mimeType,
+          is_primary: imageType === 'cover',
+          image_type: imageType,
+          sort_order: i,
+        });
+
+        logger.info(
+          `📸 Product image saved: Product ID ${productId}, Image: ${file.originalname}`
+        );
+      }
+    }
+
+    // Upload videos
+    if (fileRecord.video_files && Array.isArray(fileRecord.video_files)) {
+      const videoFiles = fileRecord.video_files;
+
+      for (let i = 0; i < videoFiles.length; i++) {
+        const file = videoFiles[i];
+        const uploadResult = await UploadService.uploadFile(file, 'products/videos');
+
+        await ProductVideo.create({
+          product_id: productId,
+          url: uploadResult.url,
+          title: file.originalname.replace(/\.[^/.]+$/, ''),
+          description: '',
+          platform: 'local',
+          size: uploadResult.size,
+          mime_type: uploadResult.mimeType,
+          video_type: 'demo',
+          sort_order: i,
+        });
+
+        logger.info(
+          `🎬 Product video saved: Product ID ${productId}, Video: ${file.originalname}`
+        );
+      }
+    }
+  }
+
+  /**
+   * Delete a product image
+   */
+  static async deleteProductImage(imageId: number): Promise<void> {
+    const image = await ProductImage.findByPk(imageId);
+
+    if (!image) {
+      throw new NotFoundError(`Image with ID ${imageId} not found`);
+    }
+
+    // Extract key from URL for S3 deletion
+    try {
+      const key = this.extractS3KeyFromUrl(image.url);
+      if (key) {
+        await UploadService.deleteFile(key);
+      }
+    } catch (error) {
+      logger.warn(`Failed to delete S3 file for image ${imageId}:`, error);
+    }
+
+    await image.destroy();
+    logger.info(`📸 Product image deleted: ${imageId}`);
+  }
+
+  /**
+   * Delete a product video
+   */
+  static async deleteProductVideo(videoId: number): Promise<void> {
+    const video = await ProductVideo.findByPk(videoId);
+
+    if (!video) {
+      throw new NotFoundError(`Video with ID ${videoId} not found`);
+    }
+
+    // Only delete from S3 if it's a local upload, not an external embed
+    if (video.platform === 'local') {
+      try {
+        const key = this.extractS3KeyFromUrl(video.url);
+        if (key) {
+          await UploadService.deleteFile(key);
+        }
+      } catch (error) {
+        logger.warn(`Failed to delete S3 file for video ${videoId}:`, error);
+      }
+    }
+
+    await video.destroy();
+    logger.info(`🎬 Product video deleted: ${videoId}`);
+  }
+
+  /**
+   * Extract S3 key from a full S3 URL
+   */
+  private static extractS3KeyFromUrl(url: string): string | null {
+    try {
+      // S3 URLs typically look like:
+      // https://bucket-name.s3.region.amazonaws.com/key/path
+      // or https://s3.region.amazonaws.com/bucket-name/key/path
+      const urlObj = new URL(url);
+      let key = urlObj.pathname;
+
+      // Remove leading slash
+      if (key.startsWith('/')) {
+        key = key.substring(1);
+      }
+
+      // If the bucket is in the subdomain, extract just the path
+      if (urlObj.hostname.includes('.s3')) {
+        return key;
+      }
+
+      // If the bucket is in the path, remove it
+      const pathParts = key.split('/');
+      if (pathParts.length > 1) {
+        return pathParts.slice(1).join('/');
+      }
+
+      return key;
+    } catch (error) {
+      logger.warn('Failed to extract S3 key from URL:', error);
+      return null;
+    }
+  }
+
   static generateSlug(name: string): string {
     return name
       .toLowerCase()
@@ -148,7 +414,9 @@ export class ProductService {
   }
 
   static async createProduct(
-    data: CreateProductInput
+    data: CreateProductInput,
+    files?: Express.Multer.File[] | Record<string, Express.Multer.File[]>,
+    bodyData?: any
   ): Promise<Product> {
     let slug = data.slug || this.generateSlug(data.name);
     slug = await this.ensureUniqueSlug(slug);
@@ -188,6 +456,14 @@ export class ProductService {
       jug,
       stock_status: stockStatus,
     });
+
+    // Upload media files after product creation
+    try {
+      await this.uploadProductMedia(product.id, files);
+    } catch (error) {
+      // Log error but don't fail the product creation
+      logger.error(`Error uploading media for product ${product.id}:`, error);
+    }
 
     logger.info(`Product created: ${product.id} - ${product.name} (SKU: ${sku}, JUG: ${jug})`);
 
@@ -275,16 +551,25 @@ export class ProductService {
         {
           model: ProductImage,
           as: 'images',
-          attributes: ['id', 'url', 'name', 'is_primary', 'sort_order'],
+          attributes: ['id', 'url', 'name', 'alt_text', 'is_primary', 'image_type', 'sort_order', 'width', 'height', 'size', 'mime_type'],
+          order: [['sort_order', 'ASC']],
+        },
+        {
+          model: ProductVideo,
+          as: 'videos',
+          attributes: ['id', 'url', 'title', 'video_type', 'platform', 'external_id', 'sort_order', 'duration'],
           order: [['sort_order', 'ASC']],
         },
       ],
     });
 
+    // Organize media for each product
+    const organizedRows = rows.map(product => this.organizeProductMedia(product));
+
     const totalPages = Math.ceil(count / limit);
 
     return {
-      data: rows,
+      data: organizedRows,
       pagination: {
         page,
         limit,
@@ -306,7 +591,13 @@ export class ProductService {
         {
           model: ProductImage,
           as: 'images',
-          attributes: ['id', 'url', 'name', 'is_primary', 'sort_order'],
+          attributes: ['id', 'url', 'name', 'alt_text', 'is_primary', 'image_type', 'sort_order', 'width', 'height', 'size', 'mime_type'],
+          order: [['sort_order', 'ASC']],
+        },
+        {
+          model: ProductVideo,
+          as: 'videos',
+          attributes: ['id', 'url', 'title', 'description', 'thumbnail_url', 'duration', 'video_type', 'platform', 'external_id', 'sort_order', 'size', 'mime_type'],
           order: [['sort_order', 'ASC']],
         },
       ],
@@ -316,7 +607,7 @@ export class ProductService {
       throw new NotFoundError(`Product with ID ${id} not found`);
     }
 
-    return product;
+    return this.organizeProductMedia(product);
   }
 
   static async getProductBySlug(slug: string): Promise<Product> {
@@ -331,7 +622,13 @@ export class ProductService {
         {
           model: ProductImage,
           as: 'images',
-          attributes: ['id', 'url', 'name', 'is_primary', 'sort_order'],
+          attributes: ['id', 'url', 'name', 'alt_text', 'is_primary', 'image_type', 'sort_order', 'width', 'height', 'size', 'mime_type'],
+          order: [['sort_order', 'ASC']],
+        },
+        {
+          model: ProductVideo,
+          as: 'videos',
+          attributes: ['id', 'url', 'title', 'description', 'thumbnail_url', 'duration', 'video_type', 'platform', 'external_id', 'sort_order', 'size', 'mime_type'],
           order: [['sort_order', 'ASC']],
         },
       ],
@@ -341,12 +638,14 @@ export class ProductService {
       throw new NotFoundError(`Product with slug '${slug}' not found`);
     }
 
-    return product;
+    return this.organizeProductMedia(product);
   }
 
   static async updateProduct(
     id: number,
-    data: UpdateProductInput
+    data: UpdateProductInput,
+    files?: Express.Multer.File[] | Record<string, Express.Multer.File[]>,
+    bodyData?: any
   ): Promise<Product> {
     const product = await Product.findByPk(id);
 
@@ -391,6 +690,36 @@ export class ProductService {
     }
 
     await product.update(data);
+
+    // Upload new media files if provided
+    if (files) {
+      try {
+        await this.uploadProductMedia(id, files);
+      } catch (error) {
+        logger.error(`Error uploading media for product ${id}:`, error);
+      }
+    }
+
+    // Handle media deletion if specified in body
+    if (bodyData?.deletedImageIds && Array.isArray(bodyData.deletedImageIds)) {
+      for (const imageId of bodyData.deletedImageIds) {
+        try {
+          await this.deleteProductImage(parseInt(imageId, 10));
+        } catch (error) {
+          logger.warn(`Failed to delete image ${imageId}:`, error);
+        }
+      }
+    }
+
+    if (bodyData?.deletedVideoIds && Array.isArray(bodyData.deletedVideoIds)) {
+      for (const videoId of bodyData.deletedVideoIds) {
+        try {
+          await this.deleteProductVideo(parseInt(videoId, 10));
+        } catch (error) {
+          logger.warn(`Failed to delete video ${videoId}:`, error);
+        }
+      }
+    }
 
     logger.info(`Product updated: ${product.id} - ${product.name}`);
 
@@ -446,7 +775,7 @@ export class ProductService {
   }
 
   static async getFeaturedProducts(limit: number = 10): Promise<Product[]> {
-    return await Product.findAll({
+    const products = await Product.findAll({
       where: {
         is_featured: true,
         is_active: true,
@@ -462,12 +791,20 @@ export class ProductService {
         {
           model: ProductImage,
           as: 'images',
-          attributes: ['id', 'url', 'name', 'is_primary', 'sort_order'],
+          attributes: ['id', 'url', 'name', 'alt_text', 'is_primary', 'image_type', 'sort_order', 'width', 'height', 'size', 'mime_type'],
           where: { is_primary: true },
           required: false,
         },
+        {
+          model: ProductVideo,
+          as: 'videos',
+          attributes: ['id', 'url', 'title', 'video_type', 'platform', 'external_id', 'sort_order'],
+          order: [['sort_order', 'ASC']],
+        },
       ],
     });
+
+    return products.map(product => this.organizeProductMedia(product));
   }
 
   static async getRelatedProducts(
@@ -489,7 +826,7 @@ export class ProductService {
       where.category_id = product.category_id;
     }
 
-    return await Product.findAll({
+    const products = await Product.findAll({
       where,
       limit,
       order: [['sales_count', 'DESC']],
@@ -502,12 +839,20 @@ export class ProductService {
         {
           model: ProductImage,
           as: 'images',
-          attributes: ['id', 'url', 'name', 'is_primary', 'sort_order'],
+          attributes: ['id', 'url', 'name', 'alt_text', 'is_primary', 'image_type', 'sort_order', 'width', 'height', 'size', 'mime_type'],
           where: { is_primary: true },
           required: false,
         },
+        {
+          model: ProductVideo,
+          as: 'videos',
+          attributes: ['id', 'url', 'title', 'video_type', 'platform', 'external_id', 'sort_order'],
+          order: [['sort_order', 'ASC']],
+        },
       ],
     });
+
+    return products.map(p => this.organizeProductMedia(p));
   }
 
   static async getLowStockProducts(
@@ -579,24 +924,20 @@ export class ProductService {
    * Get unique brands from all products for autocomplete
    */
   static async getUniqueBrands(search?: string): Promise<string[]> {
-    const whereClause: WhereOptions = {
-      brand: {
-        [Op.and]: [
-          { [Op.ne]: null },
-          { [Op.ne]: '' },
-        ]
-      },
-    };
+    const brandFilters: any[] = [
+      { [Op.ne]: null },
+      { [Op.ne]: '' },
+    ];
 
     if (search) {
-      whereClause.brand = {
-        [Op.and]: [
-          { [Op.ne]: null },
-          { [Op.ne]: '' },
-          { [Op.like]: `%${search}%` }
-        ]
-      };
+      brandFilters.push({ [Op.like]: `%${search}%` });
     }
+
+    const whereClause: WhereOptions = {
+      brand: {
+        [Op.and]: brandFilters
+      },
+    };
 
     const products = await Product.findAll({
       attributes: [[SequelizeStatic.fn('DISTINCT', SequelizeStatic.col('brand')), 'brand']],

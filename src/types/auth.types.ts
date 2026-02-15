@@ -21,6 +21,7 @@ export interface AuthResponse {
     avatar_url?: string;
     status: string;
     email_verified: boolean;
+    account_verified: boolean;
     created_at: Date;
   };
   tokens: {
@@ -28,6 +29,7 @@ export interface AuthResponse {
     refresh_token: string;
     expires_in: string;
   };
+  requires_verification?: boolean;
 }
 
 export interface RefreshTokenRequest {
