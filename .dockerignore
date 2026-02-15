@@ -6,8 +6,6 @@ yarn-error.log*
 pnpm-debug.log*
 
 # TypeScript source (we only need compiled output if building inside Docker)
-**/*.ts
-**/*.map
 
 # Build artifacts (only ignore if Docker builds itself)
 # If you build INSIDE Docker, keep this commented
