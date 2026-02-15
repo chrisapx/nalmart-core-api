@@ -1,0 +1,44 @@
+# Node dependencies (installed inside container)
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# TypeScript source (we only need compiled output if building inside Docker)
+src
+**/*.ts
+**/*.map
+
+# Build artifacts (only ignore if Docker builds itself)
+# If you build INSIDE Docker, keep this commented
+# dist
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# Git
+.git
+.gitignore
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+.vscode
+.idea
+
+# Tests & coverage
+coverage
+test
+tests
+__tests__
+
+# Logs
+logs
+*.log
+
+# Docs & misc
+README.md
+docs
