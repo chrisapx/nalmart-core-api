@@ -140,14 +140,41 @@ export const login = async (
       throw new AuthenticationError('User account is not active');
     }
 
+    // Extract session info from request
+    const { ipAddress, userAgent } = SessionService.extractSessionInfo(req);
+
+    // Check if user account is verified
+    if (!user.account_verified) {
+      logger.warn(`Unverified account attempted login: ${user.email}`);
+      
+      // Send verification email reminder
+      try {
+        await VerificationService.sendEmailVerification(user);
+      } catch (error: any) {
+        logger.error('Failed to send verification email reminder:', error.message);
+        // Don't fail the response if email fails
+      }
+
+      // Return response indicating verification is required
+      const response = {
+        requires_verification: true,
+        user: {
+          id: user.id,
+          email: user.email,
+          first_name: user.first_name,
+          last_name: user.last_name,
+          account_verified: user.account_verified,
+        },
+      };
+      sendSuccess(res, response, 'Please verify your account. A verification email has been sent.');
+      return;
+    }
+
     // Verify password
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
       throw new AuthenticationError('Invalid credentials');
     }
-
-    // Extract session info from request
-    const { ipAddress, userAgent } = SessionService.extractSessionInfo(req);
 
     // Update last login
     user.last_login_at = new Date();
@@ -340,18 +367,19 @@ export const verifyEmail = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { code } = req.body;
-    const userId = req.userId;
+    const { email, code } = req.body;
 
-    if (!userId) {
-      throw new AuthenticationError('User not authenticated');
+    if (!email || !code) {
+      throw new ValidationError('Email and verification code are required');
     }
 
-    if (!code) {
-      throw new ValidationError('Verification code is required');
+    // Look up user by email
+    const user = await User.findOne({ where: { email } });
+    if (!user) {
+      throw new AuthenticationError('User not found');
     }
 
-    await VerificationService.verifyEmail(userId, code);
+    await VerificationService.verifyEmail(user.id, code);
 
     sendSuccess(res, null, 'Email verified successfully');
   } catch (error) {
@@ -365,18 +393,19 @@ export const verifyPhone = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { code } = req.body;
-    const userId = req.userId;
+    const { phone, code } = req.body;
 
-    if (!userId) {
-      throw new AuthenticationError('User not authenticated');
+    if (!phone || !code) {
+      throw new ValidationError('Phone number and verification code are required');
     }
 
-    if (!code) {
-      throw new ValidationError('Verification code is required');
+    // Look up user by phone
+    const user = await User.findOne({ where: { phone } });
+    if (!user) {
+      throw new AuthenticationError('User not found');
     }
 
-    await VerificationService.verifyPhone(userId, code);
+    await VerificationService.verifyPhone(user.id, code);
 
     sendSuccess(res, null, 'Phone verified successfully');
   } catch (error) {
@@ -390,18 +419,23 @@ export const resendVerification = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { type } = req.body;
-    const userId = req.userId;
+    const { email, type } = req.body;
 
-    if (!userId) {
-      throw new AuthenticationError('User not authenticated');
+    if (!email) {
+      throw new ValidationError('Email is required');
     }
 
     if (!type || !['email', 'phone'].includes(type)) {
       throw new ValidationError('Type must be either "email" or "phone"');
     }
 
-    await VerificationService.resendVerification(userId, type);
+    // Look up user by email
+    const user = await User.findOne({ where: { email } });
+    if (!user) {
+      throw new AuthenticationError('User not found');
+    }
+
+    await VerificationService.resendVerification(user.id, type);
 
     sendSuccess(res, null, `Verification code sent to your ${type}`);
   } catch (error) {
@@ -501,6 +535,196 @@ export const getSessionStats = async (
   }
 };
 
+// ============================================================================
+// PASSWORD RECOVERY ENDPOINTS
+// ============================================================================
+
+/**
+ * Request password reset
+ * Generates a password reset token and sends it via email
+ */
+export const forgotPassword = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      throw new ValidationError('Email is required');
+    }
+
+    // Find user by email
+    const user = await User.findOne({ where: { email } });
+    if (!user) {
+      // Don't leak whether email exists - return success anyway
+      sendSuccess(res, null, 'If an account exists, a reset link will be sent');
+      return;
+    }
+
+    // Generate password reset token
+    const token = await VerificationService.sendPasswordReset(user);
+
+    sendSuccess(res, null, 'Password reset link sent to your email');
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Reset password with token
+ * Validates the reset token and updates the password
+ */
+export const resetPassword = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { token: resetToken, password } = req.body;
+
+    if (!resetToken) {
+      throw new ValidationError('Reset token is required');
+    }
+
+    if (!password) {
+      throw new ValidationError('New password is required');
+    }
+
+    if (password.length < 8) {
+      throw new ValidationError('Password must be at least 8 characters');
+    }
+
+    // Verify and use the reset token
+    await VerificationService.verifyPasswordReset(resetToken, password);
+
+    sendSuccess(res, null, 'Password reset successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ============================================================================
+// OTP LOGIN ENDPOINTS
+// ============================================================================
+
+/**
+ * Request OTP for login
+ * Generates and sends a login OTP code
+ */
+export const requestLoginOTP = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      throw new ValidationError('Email is required');
+    }
+
+    // Find user by email
+    const user = await User.findOne({ where: { email } });
+    if (!user) {
+      // Don't leak whether email exists - return success anyway
+      sendSuccess(res, null, 'If an account exists, an OTP will be sent');
+      return;
+    }
+
+    // Generate and send login OTP
+    await VerificationService.sendLoginOTP(user);
+
+    sendSuccess(res, null, 'OTP sent to your email');
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Login with OTP
+ * Validates the OTP and returns authentication tokens
+ */
+export const loginWithOTP = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { email, code } = req.body;
+
+    if (!email) {
+      throw new ValidationError('Email is required');
+    }
+
+    if (!code) {
+      throw new ValidationError('OTP code is required');
+    }
+
+    // Find user
+    const user = await User.findOne({ where: { email } });
+    if (!user) {
+      throw new AuthenticationError('User not found');
+    }
+
+    // Verify OTP
+    await VerificationService.verifyLoginOTP(user.id, code);
+
+    // Extract session info from request
+    const { ipAddress, userAgent } = SessionService.extractSessionInfo(req);
+
+    // Update last login
+    user.last_login_at = new Date();
+    user.last_login_ip = ipAddress;
+    await user.save();
+
+    // Create login session
+    const session = await SessionService.createSession({
+      userId: user.id,
+      ipAddress,
+      userAgent,
+      expiresIn: 7 * 24 * 60 * 60, // 7 days
+    });
+
+    // Generate tokens
+    const tokens = generateTokenPair(
+      user.id,
+      session.session_id,
+      user.email,
+      user.account_verified
+    );
+
+    logger.info(`User logged in with OTP: ${user.email}`);
+
+    // Prepare response
+    const response: AuthResponse = {
+      user: {
+        id: user.id,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        email: user.email,
+        phone: user.phone,
+        avatar_url: user.avatar_url,
+        status: user.status,
+        email_verified: user.email_verified,
+        account_verified: user.account_verified,
+        created_at: user.created_at,
+      },
+      tokens: {
+        access_token: tokens.access_token,
+        refresh_token: tokens.refresh_token,
+        expires_in: env.JWT_EXPIRES_IN,
+      },
+      requires_verification: false,
+    };
+
+    sendSuccess(res, response, 'Login successful');
+  } catch (error) {
+    next(error);
+  }
+};
+
 /**
  * Google OAuth callback handler
  * Called after successful Google authentication
@@ -514,8 +738,11 @@ export const googleCallback = async (
     const user = req.user as User;
 
     if (!user) {
-      throw new AuthenticationError('Google authentication failed');
+      logger.error('Google OAuth callback: No user found in request');
+      throw new AuthenticationError('Google authentication failed: User not found');
     }
+
+    logger.info(`✅ Google OAuth successful for user: ${user.email}`);
 
     // Extract session info from request
     const { ipAddress, userAgent } = SessionService.extractSessionInfo(req);
@@ -541,12 +768,16 @@ export const googleCallback = async (
       user.account_verified
     );
 
+    logger.debug(`Generated JWT tokens for Google OAuth user: ${user.email}`);
+
     // Redirect to frontend with tokens
     const frontendUrl = env.FRONTEND_URL || 'http://localhost:5173';
-    const redirectUrl = `${frontendUrl}/auth/google/callback?access_token=${tokens.access_token}&refresh_token=${tokens.refresh_token}`;
+    const redirectUrl = `${frontendUrl}/auth/google/callback?access_token=${tokens.access_token}&refresh_token=${tokens.refresh_token}&user_id=${user.id}`;
 
+    logger.debug(`Redirecting to: ${frontendUrl}/auth/google/callback`);
     res.redirect(redirectUrl);
   } catch (error) {
+    logger.error('Google OAuth callback error:', error);
     next(error);
   }
 };

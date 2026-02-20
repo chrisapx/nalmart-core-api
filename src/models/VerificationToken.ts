@@ -6,9 +6,7 @@ import {
   ForeignKey,
   BelongsTo,
   CreatedAt,
-  BeforeCreate,
 } from 'sequelize-typescript';
-import crypto from 'crypto';
 import User from './User';
 
 /**
@@ -50,7 +48,7 @@ export default class VerificationToken extends Model {
   token!: string;
 
   @Column({
-    type: DataType.ENUM('email', 'phone', 'password_reset', '2fa'),
+    type: DataType.ENUM('email', 'phone', 'password_reset', '2fa', 'login_otp'),
     allowNull: false,
   })
   type!: string;
@@ -87,26 +85,6 @@ export default class VerificationToken extends Model {
   // Associations
   @BelongsTo(() => User)
   user!: User;
-
-  // Hooks
-  @BeforeCreate
-  static async generateToken(token: VerificationToken) {
-    if (!token.token) {
-      // Generate 6-digit code for email/phone, 32-char token for password reset
-      if (token.type === 'email' || token.type === 'phone' || token.type === '2fa') {
-        token.token = Math.floor(100000 + Math.random() * 900000).toString();
-      } else {
-        token.token = crypto.randomBytes(32).toString('hex');
-      }
-    }
-
-    if (!token.expires_at) {
-      // Email/Phone codes expire in 15 minutes
-      // Password reset tokens expire in 1 hour
-      const expiryMinutes = token.type === 'password_reset' ? 60 : 15;
-      token.expires_at = new Date(Date.now() + expiryMinutes * 60 * 1000);
-    }
-  }
 
   // Helper methods
   isExpired(): boolean {

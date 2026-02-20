@@ -9,20 +9,32 @@ import logger from '../utils/logger';
  * Google OAuth 2.0 Strategy
  * Authenticates users via Google Sign-In
  */
+if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
+  logger.warn('⚠️  Google OAuth is not configured. GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET is missing.');
+} else {
+  logger.info('✅ Google OAuth configured successfully');
+}
+
 passport.use(
+  'google',
   new GoogleStrategy(
     {
       clientID: env.GOOGLE_CLIENT_ID || '',
       clientSecret: env.GOOGLE_CLIENT_SECRET || '',
       callbackURL: env.GOOGLE_CALLBACK_URL || 'http://localhost:3000/api/v1/auth/google/callback',
+      passReqToCallback: true,
     },
     async (
+      req: any,
       accessToken: string,
       refreshToken: string,
       profile: Profile,
       done: VerifyCallback
     ) => {
       try {
+        // Log for debugging
+        logger.debug(`Google OAuth - AccessToken received: ${!!accessToken}, RefreshToken: ${!!refreshToken}`);
+
         // Extract user info from Google profile
         const email = profile.emails?.[0]?.value;
         const googleId = profile.id;
@@ -31,6 +43,7 @@ passport.use(
         const avatar = profile.photos?.[0]?.value;
 
         if (!email) {
+          logger.error('No email found in Google profile');
           return done(new Error('No email found in Google profile'), undefined);
         }
 
@@ -41,8 +54,14 @@ passport.use(
           // User exists with this Google account - update profile if needed
           if (avatar && user.google_avatar !== avatar) {
             user.google_avatar = avatar;
-            await user.save();
           }
+          // TODO: Store tokens after migration 006 is applied
+          // user.google_access_token = accessToken;
+          // if (refreshToken) {
+          //   user.google_refresh_token = refreshToken;
+          // }
+          await user.save();
+          logger.debug(`Updated Google auth for user: ${email}`);
           return done(null, user);
         }
 
@@ -54,6 +73,11 @@ passport.use(
           user.google_id = googleId;
           user.google_email = email;
           user.google_avatar = avatar || null;
+          // TODO: Store tokens after migration 006 is applied
+          // user.google_access_token = accessToken;
+          // if (refreshToken) {
+          //   user.google_refresh_token = refreshToken;
+          // }
           user.account_verified = true;
           user.email_verified = true;
           user.verification_method = 'google';
@@ -72,6 +96,9 @@ passport.use(
           google_id: googleId,
           google_email: email,
           google_avatar: avatar,
+          // TODO: Store tokens after migration 006 is applied
+          // google_access_token: accessToken,
+          // google_refresh_token: refreshToken || null,
           account_verified: true,
           email_verified: true,
           verification_method: 'google',

@@ -5,6 +5,29 @@ import { successResponse } from '../utils/response';
 import logger from '../utils/logger';
 
 /**
+ * Get all deliveries with pagination
+ */
+export const getAllDeliveries = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const page = req.query.page ? parseInt(req.query.page as string) : 1;
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
+    const offset = (page - 1) * limit;
+
+    const result = await DeliveryService.getAllDeliveries(limit, offset);
+
+    successResponse(res, result.data, 'Deliveries retrieved successfully', 200, {
+      pagination: { total: result.count, limit, page },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Calculate shipping fee for a delivery method
  */
 export const calculateShippingFee = async (
@@ -325,6 +348,7 @@ export const getDeliveryStats = async (
 export default {
   calculateShippingFee,
   createDelivery,
+  getAllDeliveries,
   getDeliveryById,
   getDeliveriesByOrder,
   updateDeliveryStatus,

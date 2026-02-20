@@ -57,8 +57,9 @@ export const getUserFavorites = async (
   next: NextFunction
 ): Promise<void> => {
   try {
+    const page = req.query.page ? parseInt(req.query.page as string) : 1;
     const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
-    const offset = req.query.offset ? parseInt(req.query.offset as string) : 0;
+    const offset = (page - 1) * limit;
     const sortBy = (req.query.sortBy as string) || 'created_at';
     const order = ((req.query.order as string) || 'DESC').toUpperCase() as 'ASC' | 'DESC';
 
@@ -71,7 +72,7 @@ export const getUserFavorites = async (
     );
 
     successResponse(res, result.data, 'User favorites retrieved successfully', 200, {
-      pagination: { total: result.count, limit, offset },
+      pagination: { total: result.count, limit, page },
     });
   } catch (error) {
     next(error);
@@ -167,13 +168,14 @@ export const getAllFavorites = async (
   next: NextFunction
 ): Promise<void> => {
   try {
+    const page = req.query.page ? parseInt(req.query.page as string) : 1;
     const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
-    const offset = req.query.offset ? parseInt(req.query.offset as string) : 0;
+    const offset = (page - 1) * limit;
 
     const result = await FavoriteService.getAllFavorites(limit, offset);
 
     successResponse(res, result.data, 'All favorites retrieved successfully', 200, {
-      pagination: { total: result.count, limit, offset },
+      pagination: { total: result.count, limit, page },
     });
   } catch (error) {
     next(error);

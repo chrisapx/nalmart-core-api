@@ -28,6 +28,8 @@ import DeliveryAddress from '../models/DeliveryAddress';
 import Favorite from '../models/Favorite';
 import Campaign from '../models/Campaign';
 import Promotion from '../models/Promotion';
+import Cart from '../models/Cart';
+import CartItem from '../models/CartItem';
 
 const sequelize = new Sequelize({
   host: env.DB_HOST,
@@ -75,6 +77,8 @@ const sequelize = new Sequelize({
     Favorite,
     Campaign,
     Promotion,
+    Cart,
+    CartItem,
   ],
 });
 

@@ -40,11 +40,6 @@ router.post('/reset-password', resetPassword);
 router.post('/request-otp', requestLoginOTP);
 router.post('/login-otp', loginWithOTP);
 
-// Email/Phone Verification (Public - users verify after registration)
-router.post('/verify-email', verifyEmail);
-router.post('/verify-phone', verifyPhone);
-router.post('/resend-verification', resendVerification);
-
 // ============================================================================
 // GOOGLE OAUTH ROUTES
 // ============================================================================
@@ -101,6 +96,10 @@ router.get('/profile', authenticate, getProfile);
 router.post('/logout', authenticate, logout);
 router.post('/logout-all', authenticate, logoutAllDevices);
 
+// Verification
+router.post('/verify-email', authenticate, verifyEmail);
+router.post('/verify-phone', authenticate, verifyPhone);
+router.post('/resend-verification', authenticate, resendVerification);
 
 // Session Management
 router.get('/sessions', authenticate, getActiveSessions);

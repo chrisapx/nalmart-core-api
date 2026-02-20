@@ -35,6 +35,12 @@ router.post(
 );
 
 /**
+ * GET /api/v1/deliveries
+ * Get all deliveries with pagination
+ */
+router.get('/', DeliveryController.getAllDeliveries);
+
+/**
  * GET /api/v1/deliveries/:id
  * Get delivery by ID
  */

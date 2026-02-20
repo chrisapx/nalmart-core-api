@@ -94,14 +94,20 @@ export class OrderService {
         const product = products.find((p) => p.id === item.product_id);
         if (!product) throw new NotFoundError(`Product ${item.product_id} not found`);
 
-        // Check stock availability
+        // Check stock availability - try inventory table first, fallback to product.stock_quantity
+        let availableStock = product.stock_quantity || 0;
+        
         const inventory = await Inventory.findOne({
           where: { product_id: item.product_id },
         });
 
-        if (!inventory || inventory.quantity_available < item.quantity) {
+        if (inventory && inventory.quantity_available) {
+          availableStock = inventory.quantity_available;
+        }
+
+        if (availableStock < item.quantity) {
           throw new BadRequestError(
-            `Insufficient stock for product: ${product.name}`
+            `Insufficient stock for product: ${product.name}. Available: ${availableStock}, Requested: ${item.quantity}`
           );
         }
 

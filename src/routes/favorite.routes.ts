@@ -10,6 +10,46 @@ import {
 const router = Router();
 
 /**
+ * GET /api/v1/favorites/all
+ * Get all favorites (admin)
+ */
+router.get(
+  '/all',
+  validateQuery(paginationSchema),
+  FavoriteController.getAllFavorites
+);
+
+/**
+ * GET /api/v1/favorites/popular
+ * Get most favorited products (public)
+ */
+router.get('/popular', FavoriteController.getPopularProducts);
+
+/**
+ * GET /api/v1/favorites/stats
+ * Get favorite statistics
+ */
+router.get(
+  '/stats',
+  FavoriteController.getFavoriteStats
+);
+
+/**
+ * GET /api/v1/favorites/product/:productId/status
+ * Check if product is favorited
+ */
+router.get('/product/:productId/status', FavoriteController.isFavorited);
+
+/**
+ * DELETE /api/v1/favorites/product/:productId
+ * Remove product from favorites
+ */
+router.delete(
+  '/product/:productId',
+  FavoriteController.removeFavorite
+);
+
+/**
  * POST /api/v1/favorites
  * Add product to favorites
  */
@@ -43,46 +83,6 @@ router.put(
   '/:id',
   validateBody(updateFavoriteSchema),
   FavoriteController.updateFavorite
-);
-
-/**
- * DELETE /api/v1/favorites/product/:productId
- * Remove product from favorites
- */
-router.delete(
-  '/product/:productId',
-  FavoriteController.removeFavorite
-);
-
-/**
- * GET /api/v1/favorites/product/:productId/status
- * Check if product is favorited
- */
-router.get('/product/:productId/status', FavoriteController.isFavorited);
-
-/**
- * GET /api/v1/favorites/all
- * Get all favorites
- */
-router.get(
-  '/all',
-  validateQuery(paginationSchema),
-  FavoriteController.getAllFavorites
-);
-
-/**
- * GET /api/v1/favorites/popular
- * Get most favorited products (public)
- */
-router.get('/popular', FavoriteController.getPopularProducts);
-
-/**
- * GET /api/v1/favorites/stats
- * Get favorite statistics
- */
-router.get(
-  '/stats',
-  FavoriteController.getFavoriteStats
 );
 
 export default router;

@@ -136,6 +136,20 @@ export default class User extends Model {
   google_avatar!: string | null;
 
   @Column({
+    type: DataType.TEXT,
+    allowNull: true,
+    comment: 'Google OAuth access token for API calls on behalf of user',
+  })
+  google_access_token!: string | null;
+
+  @Column({
+    type: DataType.TEXT,
+    allowNull: true,
+    comment: 'Google OAuth refresh token for token renewal',
+  })
+  google_refresh_token!: string | null;
+
+  @Column({
     type: DataType.DATE,
     allowNull: true,
   })

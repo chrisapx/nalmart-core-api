@@ -127,6 +127,9 @@ export const getUsers = async (
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 20;
     const status = req.query.status as string;
+    const search = req.query.search as string;
+    const sort_by = (req.query.sort_by as string) || 'created_at';
+    const order = ((req.query.order as string) || 'DESC').toUpperCase();
 
     const offset = (page - 1) * limit;
 
@@ -135,12 +138,27 @@ export const getUsers = async (
       where.status = status;
     }
 
+    // Search by name or email
+    if (search && search.trim()) {
+      const { Op } = require('sequelize');
+      where[Op.or] = [
+        { first_name: { [Op.like]: `%${search.trim()}%` } },
+        { last_name: { [Op.like]: `%${search.trim()}%` } },
+        { email: { [Op.like]: `%${search.trim()}%` } },
+      ];
+    }
+
+    // Validate sort field to prevent SQL injection
+    const allowedSortFields = ['id', 'first_name', 'last_name', 'email', 'status', 'created_at', 'updated_at'];
+    const sortField = allowedSortFields.includes(sort_by) ? sort_by : 'created_at';
+    const sortOrder = order === 'ASC' ? 'ASC' : 'DESC';
+
     const { rows: users, count } = await User.findAndCountAll({
       where,
       limit,
       offset,
       attributes: { exclude: ['password'] },
-      order: [['created_at', 'DESC']],
+      order: [[sortField, sortOrder]],
     });
 
     sendSuccess(res, {
@@ -149,7 +167,8 @@ export const getUsers = async (
         total: count,
         page,
         limit,
-        pages: Math.ceil(count / limit),
+        totalPages: Math.ceil(count / limit),
+        hasMore: page < Math.ceil(count / limit),
       },
     });
   } catch (error) {

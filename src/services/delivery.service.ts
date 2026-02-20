@@ -67,6 +67,28 @@ export class DeliveryService {
   }
 
   /**
+   * Get all deliveries with pagination
+   */
+  static async getAllDeliveries(limit: number = 20, offset: number = 0): Promise<{ data: Delivery[]; count: number }> {
+    try {
+      const { count, rows } = await Delivery.findAndCountAll({
+        limit,
+        offset,
+        include: [
+          { model: Order, as: 'order', attributes: ['id', 'order_number', 'user_id', 'status'] },
+          { model: DeliveryMethod, as: 'delivery_method', attributes: ['id', 'name'] },
+        ],
+        order: [['created_at', 'DESC']],
+      });
+
+      return { data: rows, count };
+    } catch (error) {
+      logger.error('Error fetching all deliveries:', error);
+      throw new Error('Failed to fetch deliveries');
+    }
+  }
+
+  /**
    * Create a delivery for an order
    */
   static async createDelivery(data: {

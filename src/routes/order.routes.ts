@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   createOrder,
+  createOrderFromCart,
   getOrders,
   getUserOrders,
   getOrderById,
@@ -21,9 +22,16 @@ const router = Router();
 /**
  * @route   POST /api/v1/orders
  * @desc    Create a new order
- * @access  Public
+ * @access  Private (Authentication required)
  */
-router.post('/', createOrder);
+router.post('/', authenticate, createOrder);
+
+/**
+ * @route   POST /api/v1/orders/from-cart
+ * @desc    Create order from user's cart
+ * @access  Private (Authentication required)
+ */
+router.post('/from-cart', authenticate, createOrderFromCart);
 
 /**
  * @route   GET /api/v1/orders
@@ -35,9 +43,16 @@ router.get('/', getOrders);
 /**
  * @route   GET /api/v1/orders/my-orders
  * @desc    Get current user's orders
+ * @access  Private (Authentication required)
+ */
+router.get('/my-orders', authenticate, getUserOrders);
+
+/**
+ * @route   GET /api/v1/orders/:id/tracking
+ * @desc    Get order tracking information
  * @access  Public
  */
-router.get('/my-orders', getUserOrders);
+router.get('/:id/tracking', getOrderById);
 
 /**
  * @route   GET /api/v1/orders/stats
@@ -63,16 +78,16 @@ router.get('/:id', getOrderById);
 /**
  * @route   PUT /api/v1/orders/:id
  * @desc    Update order
- * @access  Public
+ * @access  Private (Authentication required)
  */
-router.put('/:id', updateOrder);
+router.put('/:id', authenticate, updateOrder);
 
 /**
  * @route   POST /api/v1/orders/:id/cancel
  * @desc    Cancel order
- * @access  Public
+ * @access  Private (Authentication required)
  */
-router.post('/:id/cancel', cancelOrder);
+router.post('/:id/cancel', authenticate, cancelOrder);
 
 /**
  * @route   POST /api/v1/orders/:id/ship
@@ -89,15 +104,15 @@ router.post(
 /**
  * @route   POST /api/v1/orders/:id/deliver
  * @desc    Mark order as delivered
- * @access  Public
+ * @access  Private (Authentication required - Admin)
  */
-router.post('/:id/deliver', deliverOrder);
+router.post('/:id/deliver', authenticate, deliverOrder);
 
 /**
  * @route   POST /api/v1/orders/:id/payment
  * @desc    Record payment for order
- * @access  Public
+ * @access  Private (Authentication required)
  */
-router.post('/:id/payment', recordPayment);
+router.post('/:id/payment', authenticate, recordPayment);
 
 export default router;

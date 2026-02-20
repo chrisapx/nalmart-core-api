@@ -1,9 +1,11 @@
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../types/express';
 import { OrderService } from '../services/order.service';
+import { CartService } from '../services/cart.service';
 import { successResponse } from '../utils/response';
-import { BadRequestError } from '../utils/errors';
+import { BadRequestError, NotFoundError } from '../utils/errors';
 import logger from '../utils/logger';
+import Cart from '../models/Cart';
 
 /**
  * Create a new order
@@ -14,10 +16,15 @@ export const createOrder = async (
   next: NextFunction
 ): Promise<void> => {
   try {
+    // Ensure user is authenticated
+    if (!req.user || !req.user.id) {
+      throw new BadRequestError('Authentication required to create an order');
+    }
+
     const { items, coupon_code, payment_method, shipping_address, billing_address, customer_notes } = req.body;
 
     const order = await OrderService.createOrder({
-      user_id: req.user?.id || 0,
+      user_id: req.user.id,
       items,
       coupon_code,
       payment_method,
@@ -29,6 +36,65 @@ export const createOrder = async (
     });
 
     successResponse(res, order, 'Order created successfully', 201);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Create order from cart
+ */
+export const createOrderFromCart = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    // Ensure user is authenticated
+    if (!req.user || !req.user.id) {
+      throw new BadRequestError('Authentication required to create an order');
+    }
+
+    // Get user's cart with items
+    const cart = await Cart.findOne({
+      where: { user_id: req.user.id },
+      include: [
+        {
+          association: 'CartItems',
+          attributes: ['product_id', 'quantity', 'unit_price'],
+        },
+      ],
+    });
+
+    if (!cart || !cart.CartItems || cart.CartItems.length === 0) {
+      throw new NotFoundError('Cart is empty');
+    }
+
+    // Format cart items for order creation
+    const items = cart.CartItems.map((item: any) => ({
+      product_id: item.product_id,
+      quantity: item.quantity,
+      unit_price: item.unit_price,
+    }));
+
+    const { coupon_code, payment_method, shipping_address, billing_address, customer_notes } = req.body;
+
+    const order = await OrderService.createOrder({
+      user_id: req.user.id,
+      items,
+      coupon_code,
+      payment_method,
+      shipping_address,
+      billing_address,
+      customer_notes,
+      ip_address: req.ip,
+      user_agent: req.get('user-agent'),
+    });
+
+    // Clear cart after successful order
+    await CartService.clearCart(req.user.id);
+
+    successResponse(res, order, 'Order created from cart successfully', 201);
   } catch (error) {
     next(error);
   }
@@ -62,10 +128,15 @@ export const getUserOrders = async (
   next: NextFunction
 ): Promise<void> => {
   try {
+    // Ensure user is authenticated
+    if (!req.user || !req.user.id) {
+      throw new BadRequestError('Authentication required to retrieve orders');
+    }
+
     const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
     const offset = req.query.offset ? parseInt(req.query.offset as string) : 0;
 
-    const result = await OrderService.getUserOrders(req.user?.id || 0, limit, offset);
+    const result = await OrderService.getUserOrders(req.user.id, limit, offset);
 
     successResponse(res, result.data, 'User orders retrieved successfully', 200, {
       pagination: { total: result.count, limit, offset },
@@ -162,6 +233,11 @@ export const cancelOrder = async (
   next: NextFunction
 ): Promise<void> => {
   try {
+    // Ensure user is authenticated
+    if (!req.user || !req.user.id) {
+      throw new BadRequestError('Authentication required to cancel an order');
+    }
+
     const idStr = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const orderId = parseInt(idStr as string, 10);
 
@@ -212,6 +288,11 @@ export const deliverOrder = async (
   next: NextFunction
 ): Promise<void> => {
   try {
+    // Ensure user is authenticated
+    if (!req.user || !req.user.id) {
+      throw new BadRequestError('Authentication required to mark order as delivered');
+    }
+
     const idStr = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const orderId = parseInt(idStr as string, 10);
 
@@ -236,6 +317,11 @@ export const recordPayment = async (
   next: NextFunction
 ): Promise<void> => {
   try {
+    // Ensure user is authenticated
+    if (!req.user || !req.user.id) {
+      throw new BadRequestError('Authentication required to record payment');
+    }
+
     const idStr = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const orderId = parseInt(idStr as string, 10);
 

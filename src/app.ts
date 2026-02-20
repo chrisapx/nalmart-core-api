@@ -21,6 +21,8 @@ import reviewRoutes from './routes/review.routes';
 import deliveryRoutes from './routes/delivery.routes';
 import favoriteRoutes from './routes/favorite.routes';
 import campaignRoutes from './routes/campaign.routes';
+import cartRoutes from './routes/cart.routes';
+import analyticsRoutes from './routes/analytics.routes';
 
 const app: Application = express();
 
@@ -66,6 +68,8 @@ app.use(`/api/${env.API_VERSION}/reviews`, reviewRoutes);
 app.use(`/api/${env.API_VERSION}/deliveries`, deliveryRoutes);
 app.use(`/api/${env.API_VERSION}/favorites`, favoriteRoutes);
 app.use(`/api/${env.API_VERSION}/campaigns`, campaignRoutes);
+app.use(`/api/${env.API_VERSION}/cart`, cartRoutes);
+app.use(`/api/${env.API_VERSION}/analytics`, analyticsRoutes);
 
 // 404 handler
 app.use(notFoundHandler);
