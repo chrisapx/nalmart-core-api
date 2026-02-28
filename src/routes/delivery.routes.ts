@@ -32,6 +32,18 @@ router.post(
 router.get('/methods/available', DeliveryController.getAvailableMethods);
 
 /**
+ * GET /api/v1/deliveries/methods/categorized
+ * Returns active methods grouped by category (PickUp / Door / PickUpXpress / DoorXpress).
+ */
+router.get('/methods/categorized', DeliveryController.getCategorizedMethods);
+
+/**
+ * POST /api/v1/deliveries/calculate-fee-by-category
+ * Zone/city-aware fee calculation.
+ */
+router.post('/calculate-fee-by-category', DeliveryController.calculateFeeByCategory);
+
+/**
  * POST /api/v1/deliveries/methods
  */
 router.post(

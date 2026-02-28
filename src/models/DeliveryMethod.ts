@@ -43,6 +43,21 @@ export default class DeliveryMethod extends Model {
   type!: string;
 
   @Column({
+    type: DataType.ENUM('PickUp', 'Door', 'PickUpXpress', 'DoorXpress'),
+    allowNull: false,
+    defaultValue: 'Door',
+    comment: 'Delivery category shown in the checkout UI',
+  })
+  category!: string;
+
+  @Column({
+    type: DataType.JSON,
+    allowNull: true,
+    comment: 'Zone/city surcharges: {"Kampala":0,"Entebbe":4000,"_default":20000}',
+  })
+  zones?: Record<string, number>;
+
+  @Column({
     type: DataType.DECIMAL(10, 2),
     allowNull: false,
     defaultValue: 0,

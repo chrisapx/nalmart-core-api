@@ -7,6 +7,7 @@ import ReservedInventory from '../models/ReservedInventory';
 import Inventory from '../models/Inventory';
 import { InventoryService } from './inventory.service';
 import DeliveryService from './delivery.service';
+import { EmailService } from './email.service';
 import logger from '../utils/logger';
 import { NotFoundError, BadRequestError, ValidationError } from '../utils/errors';
 import { Op } from 'sequelize';
@@ -479,6 +480,10 @@ export class OrderService {
 
       await order.save();
       logger.info(`✅ Order shipped: ${order.order_number}`);
+
+      // Send shipping email (non-blocking)
+      OrderService.sendStatusEmail(orderId, 'shipped', trackingNumber).catch(() => {});
+
       return order;
     } catch (error) {
       logger.error('Error shipping order:', error);
@@ -500,6 +505,10 @@ export class OrderService {
 
       await order.save();
       logger.info(`✅ Order delivered: ${order.order_number}`);
+
+      // Send delivered + review-request email (non-blocking)
+      OrderService.sendStatusEmail(orderId, 'delivered').catch(() => {});
+
       return order;
     } catch (error) {
       logger.error('Error delivering order:', error);
@@ -561,6 +570,77 @@ export class OrderService {
     } catch (error) {
       logger.error('Error fetching order stats:', error);
       throw error;
+    }
+  }
+
+  // ── Status-update email helper ────────────────────────────────────────────
+
+  /**
+   * Load a fully-populated order and fire the appropriate status email.
+   * Safe to call fire-and-forget (.catch(() => {})).
+   */
+  static async sendStatusEmail(
+    orderId: number,
+    status: 'shipped' | 'out_for_delivery' | 'delivered',
+    trackingNumber?: string,
+  ): Promise<void> {
+    try {
+      const order = await Order.findByPk(orderId, {
+        include: [
+          { model: OrderItem },
+          { model: User, attributes: ['id', 'email', 'first_name', 'last_name', 'phone'] },
+        ],
+      });
+      if (!order) return;
+
+      const user = (order as any).user as User | null;
+      if (!user?.email) return;
+
+      const items = ((order as any).items || []).map((item: any) => ({
+        name:        item.product_name,
+        sku:         item.product_sku,
+        quantity:    item.quantity,
+        unit_price:  Number(item.unit_price),
+        total_price: Number(item.total_price),
+        image_url:   item.product_image_url,
+        product_id:  item.product_id,
+      }));
+
+      const sa: Record<string, string> = order.shipping_address || {};
+      const deliveryAddress = Object.keys(sa).length
+        ? {
+            full_name:      sa.full_name || sa.name || [user.first_name, user.last_name].filter(Boolean).join(' '),
+            address_line_1: sa.address_line_1 || sa.address_line1 || sa.address || '',
+            address_line_2: sa.address_line_2 || sa.address_line2 || '',
+            city:           sa.city   || '',
+            state:          sa.state  || '',
+            country:        sa.country || 'Uganda',
+            phone:          sa.phone  || (user as any).phone || '',
+          }
+        : undefined;
+
+      const base = {
+        to:            user.email,
+        firstName:     user.first_name || 'Customer',
+        orderId:       order.id,
+        orderNumber:   order.order_number,
+        orderDate:     order.created_at,
+        items,
+        subtotal:      Number(order.subtotal),
+        shipping:      Number(order.shipping_amount),
+        tax:           Number(order.tax_amount),
+        total:         Number(order.total_amount),
+        currency:      'UGX',
+        paymentMethod: order.payment_method || 'cash_on_delivery',
+        deliveryAddress,
+        trackingNumber,
+      };
+
+      if (status === 'shipped')           await EmailService.sendOrderShipped(base);
+      else if (status === 'out_for_delivery') await EmailService.sendOutForDelivery(base);
+      else if (status === 'delivered')    await EmailService.sendDelivered(base);
+    } catch (err) {
+      logger.error(`sendStatusEmail error for order ${orderId}:`, err);
     }
   }
 }

@@ -345,8 +345,51 @@ export const getDeliveryStats = async (
   }
 };
 
+/**
+ * GET /api/v1/deliveries/methods/categorized
+ * Returns methods grouped by category for the checkout delivery step UI.
+ */
+export const getCategorizedMethods = async (
+  _req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const grouped = await DeliveryService.getCategorizedMethods();
+    successResponse(res, grouped, 'Delivery methods retrieved by category');
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * POST /api/v1/deliveries/calculate-fee-by-category
+ * Calculate fee using zone/city-aware pricing.
+ * Body: { delivery_method_id, city?, weight?, order_subtotal? }
+ */
+export const calculateFeeByCategory = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { delivery_method_id, city, weight, order_subtotal } = req.body;
+    if (!delivery_method_id) throw new Error('delivery_method_id is required');
+    const result = await DeliveryService.calculateFeeByCategory(
+      Number(delivery_method_id),
+      city,
+      Number(weight || 0),
+      Number(order_subtotal || 0),
+    );
+    successResponse(res, result, 'Delivery fee calculated');
+  } catch (error) {
+    next(error);
+  }
+};
+
 export default {
   calculateShippingFee,
+  calculateFeeByCategory,
   createDelivery,
   getAllDeliveries,
   getDeliveryById,
@@ -354,6 +397,7 @@ export default {
   updateDeliveryStatus,
   generateTrackingNumber,
   getAvailableMethods,
+  getCategorizedMethods,
   createDeliveryMethod,
   updateDeliveryMethod,
   createDeliveryAddress,

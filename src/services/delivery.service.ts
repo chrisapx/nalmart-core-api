@@ -7,6 +7,7 @@ import OrderItem from '../models/OrderItem';
 import Product from '../models/Product';
 import { NotFoundError, BadRequestError } from '../utils/errors';
 import logger from '../utils/logger';
+import OrderService from './order.service';
 
 export class DeliveryService {
   /**
@@ -278,6 +279,11 @@ export class DeliveryService {
 
       await delivery.update(updateData);
 
+      // Fire status emails for key milestones
+      if (newStatus === 'out_for_delivery' && delivery.order_id) {
+        OrderService.sendStatusEmail(delivery.order_id, 'out_for_delivery').catch(() => {});
+      }
+
       logger.info(`Delivery ${deliveryId} status updated to ${newStatus}`);
       return delivery;
     } catch (error) {
@@ -508,6 +514,98 @@ export class DeliveryService {
       logger.error('Error fetching delivery stats:', error);
       throw new Error('Failed to fetch delivery statistics');
     }
+  }
+
+  // ── NEW: Category-based delivery methods ──────────────────────────────────
+
+  /**
+   * Return all active delivery methods grouped by category.
+   * Used on the checkout "Delivery" step so the UI can render
+   * PickUp / Door / PickUpXpress / DoorXpress tabs.
+   */
+  static async getCategorizedMethods(): Promise<Record<string, DeliveryMethod[]>> {
+    const methods = await DeliveryMethod.findAll({
+      where: { is_active: true },
+      order: [
+        ['category', 'ASC'],
+        ['display_order', 'ASC'],
+      ],
+    });
+
+    const groups: Record<string, DeliveryMethod[]> = {};
+    for (const m of methods) {
+      const cat: string = (m as any).category || 'Other';
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(m);
+    }
+    return groups;
+  }
+
+  /**
+   * Calculate the delivery fee for a given method, taking city-based
+   * zone surcharges into account.
+   *
+   * Zone matching is case-insensitive; if no city match is found the
+   * `_default` surcharge is applied. If neither exists the surcharge is 0.
+   *
+   * Free-shipping threshold applies AFTER the zone surcharge.
+   * Weight-based fee still applies on top of the base.
+   */
+  static async calculateFeeByCategory(
+    deliveryMethodId: number,
+    city?: string,
+    weight: number = 0,
+    orderSubtotal: number = 0,
+  ): Promise<{
+    fee: number;
+    breakdown: { base: number; weight: number; zone: number; total: number; free: boolean };
+  }> {
+    const method = await DeliveryMethod.findByPk(deliveryMethodId);
+    if (!method) throw new NotFoundError('Delivery method not found');
+    if (!method.is_active) throw new BadRequestError('Delivery method is not available');
+
+    let baseFee    = Number(method.base_fee)   || 0;
+    let weightFee  = weight > 0 ? weight * (Number(method.fee_per_kg) || 0) : 0;
+    let zoneFee    = 0;
+
+    // Resolve zone surcharge
+    const zones = (method as any).zones as Record<string, number> | undefined;
+    if (zones && city) {
+      const key = Object.keys(zones).find(
+        (k) => k.toLowerCase() === city.toLowerCase(),
+      );
+      zoneFee = key !== undefined ? zones[key] : (zones._default ?? 0);
+    } else if (zones?._default !== undefined) {
+      zoneFee = zones._default;
+    }
+
+    let total = baseFee + weightFee + zoneFee;
+    let free  = false;
+
+    // Free shipping threshold
+    if (
+      method.free_shipping_threshold &&
+      orderSubtotal >= Number(method.free_shipping_threshold)
+    ) {
+      total = 0;
+      free  = true;
+    }
+
+    // Max fee cap
+    if (method.max_fee && total > Number(method.max_fee)) {
+      total = Number(method.max_fee);
+    }
+
+    return {
+      fee: Math.round(total),
+      breakdown: {
+        base:   Math.round(baseFee),
+        weight: Math.round(weightFee),
+        zone:   Math.round(zoneFee),
+        total:  Math.round(total),
+        free,
+      },
+    };
   }
 }
 

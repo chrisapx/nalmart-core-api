@@ -56,6 +56,11 @@ interface EnvConfig {
   // CORS
   ALLOWED_ORIGINS: string[];
 
+  // Store
+  STORE_NAME: string;
+  STORE_MOMO_NUMBER: string;
+  STORE_ADDRESS?: string;
+
   // Rate Limiting
   RATE_LIMIT_WINDOW_MS: number;
   RATE_LIMIT_MAX_REQUESTS: number;
@@ -116,6 +121,11 @@ const env: EnvConfig = {
   ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS
     ? process.env.ALLOWED_ORIGINS.split(',').map((origin) => origin.trim())
     : ['http://localhost:5173', 'http://localhost:3000'],
+
+  // Store
+  STORE_NAME: process.env.STORE_NAME || 'Nalmart',
+  STORE_MOMO_NUMBER: process.env.STORE_MOMO_NUMBER || '+256 700 000 000',
+  STORE_ADDRESS: process.env.STORE_ADDRESS,
 
   // Rate Limiting
   RATE_LIMIT_WINDOW_MS: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10),
