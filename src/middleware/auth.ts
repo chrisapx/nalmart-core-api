@@ -4,7 +4,23 @@ import { verifyAccessToken } from '../utils/jwt';
 import { AuthenticationError } from '../utils/errors';
 import { isTokenBlacklisted } from '../config/redis';
 import User from '../models/User';
+import { SessionService } from '../services/session.service';
 import logger from '../utils/logger';
+
+// Throttle session activity updates to once every 5 minutes per session
+const activityThrottle = new Map<string, number>();
+const ACTIVITY_UPDATE_INTERVAL = 5 * 60 * 1000; // 5 minutes
+
+function updateSessionActivity(sessionId: string): void {
+  const now = Date.now();
+  const last = activityThrottle.get(sessionId) ?? 0;
+  if (now - last < ACTIVITY_UPDATE_INTERVAL) return;
+  activityThrottle.set(sessionId, now);
+  // Fire-and-forget — don't block the request
+  SessionService.updateActivity(sessionId).catch((err) =>
+    logger.warn(`Failed to update session activity for ${sessionId}: ${err?.message}`)
+  );
+}
 
 export const authenticate = async (
   req: AuthRequest,
@@ -49,6 +65,11 @@ export const authenticate = async (
     req.userId = user.id;
     req.token = token;
     (req as any).sessionId = decoded.sessionId; // Attach session ID for tracking
+
+    // Update last_activity_at (throttled — at most once per 5 min per session)
+    if (decoded.sessionId) {
+      updateSessionActivity(decoded.sessionId);
+    }
 
     next();
   } catch (error) {

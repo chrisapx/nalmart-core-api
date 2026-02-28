@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import nodemailer from 'nodemailer';
 import { Op } from 'sequelize';
 import crypto from 'crypto';
@@ -11,6 +13,26 @@ import { NotFoundError, ValidationError } from '../utils/errors';
  * Verification Service
  * Handles email and phone verification for user accounts
  */
+// ─────────────────────────────────────────────────────────────────
+// Template helpers (shared with email.service.ts pattern)
+// ─────────────────────────────────────────────────────────────────
+
+function tplDir(): string {
+  const here = path.join(__dirname, '../templates/emails');
+  if (fs.existsSync(here)) return here;
+  return path.join(process.cwd(), 'src/templates/emails');
+}
+
+function loadTpl(name: string): string {
+  return fs.readFileSync(path.join(tplDir(), name), 'utf-8');
+}
+
+function renderTpl(template: string, vars: Record<string, string>): string {
+  return template.replace(/\{\{([A-Z0-9_]+)\}\}/g, (_, key: string) => vars[key] ?? '');
+}
+
+// ─────────────────────────────────────────────────────────────────
+
 export class VerificationService {
   private static emailTransporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
@@ -74,13 +96,19 @@ export class VerificationService {
 
     // Send email
     try {
-      await this.emailTransporter.sendMail({
-        from: process.env.EMAIL_FROM || 'Nalmart <noreply@nalmart.com>',
-        to: user.email,
-        subject: 'Verify Your Nalmart Account',
-        html: this.getEmailVerificationTemplate(user.first_name, verificationToken.token),
+      const html = renderTpl(loadTpl('verify-email.html'), {
+        FIRST_NAME:    user.first_name || 'there',
+        CODE:          verificationToken.token,
+        SUPPORT_EMAIL: process.env.SMTP_USER || 'support@nalmart.com',
+        STORE_NAME:    process.env.STORE_NAME || 'Nalmart',
+        YEAR:          String(new Date().getFullYear()),
       });
-
+      await this.emailTransporter.sendMail({
+        from:    process.env.EMAIL_FROM || 'Nalmart <noreply@nalmart.com>',
+        to:      user.email,
+        subject: `Verify Your ${process.env.STORE_NAME || 'Nalmart'} Account`,
+        html,
+      });
       logger.info(`Email verification sent to ${user.email}`);
     } catch (error) {
       logger.error('Failed to send verification email:', error);
@@ -312,13 +340,20 @@ export class VerificationService {
 
     // Send password reset email
     try {
-      await this.emailTransporter.sendMail({
-        from: process.env.EMAIL_FROM || 'Nalmart <noreply@nalmart.com>',
-        to: user.email,
-        subject: 'Reset Your Nalmart Password',
-        html: this.getPasswordResetTemplate(user.first_name, verificationToken.token),
+      const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:8080'}/reset-password?token=${verificationToken.token}`;
+      const html = renderTpl(loadTpl('reset-password.html'), {
+        FIRST_NAME:    user.first_name || 'there',
+        RESET_URL:     resetUrl,
+        SUPPORT_EMAIL: process.env.SMTP_USER || 'support@nalmart.com',
+        STORE_NAME:    process.env.STORE_NAME || 'Nalmart',
+        YEAR:          String(new Date().getFullYear()),
       });
-
+      await this.emailTransporter.sendMail({
+        from:    process.env.EMAIL_FROM || 'Nalmart <noreply@nalmart.com>',
+        to:      user.email,
+        subject: `Reset Your ${process.env.STORE_NAME || 'Nalmart'} Password`,
+        html,
+      });
       logger.info(`Password reset email sent to ${user.email}`);
     } catch (error) {
       logger.error('Failed to send password reset email:', error);
@@ -398,13 +433,19 @@ export class VerificationService {
 
     // Send OTP via email
     try {
-      await this.emailTransporter.sendMail({
-        from: process.env.EMAIL_FROM || 'Nalmart <noreply@nalmart.com>',
-        to: user.email,
-        subject: 'Your Nalmart Login Code',
-        html: this.getLoginOTPTemplate(user.first_name, verificationToken.token),
+      const html = renderTpl(loadTpl('login-otp.html'), {
+        FIRST_NAME:    user.first_name || 'there',
+        CODE:          verificationToken.token,
+        SUPPORT_EMAIL: process.env.SMTP_USER || 'support@nalmart.com',
+        STORE_NAME:    process.env.STORE_NAME || 'Nalmart',
+        YEAR:          String(new Date().getFullYear()),
       });
-
+      await this.emailTransporter.sendMail({
+        from:    process.env.EMAIL_FROM || 'Nalmart <noreply@nalmart.com>',
+        to:      user.email,
+        subject: `Your ${process.env.STORE_NAME || 'Nalmart'} Login Code`,
+        html,
+      });
       logger.info(`Login OTP sent to ${user.email}`);
     } catch (error) {
       logger.error('Failed to send login OTP:', error);
@@ -469,127 +510,4 @@ export class VerificationService {
     */
   }
 
-  /**
-   * Email verification HTML template
-   */
-  private static getEmailVerificationTemplate(firstName: string, code: string): string {
-    return `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: #4F46E5; color: white; padding: 20px; text-align: center; }
-          .content { padding: 30px; background: #f9fafb; }
-          .code { font-size: 32px; font-weight: bold; color: #4F46E5; text-align: center; 
-                  padding: 20px; background: white; border-radius: 8px; margin: 20px 0; }
-          .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>Verify Your Nalmart Account</h1>
-          </div>
-          <div class="content">
-            <p>Hi ${firstName},</p>
-            <p>Thank you for registering with Nalmart! Please use the verification code below to complete your registration:</p>
-            <div class="code">${code}</div>
-            <p>This code will expire in 15 minutes.</p>
-            <p>If you didn't create an account with Nalmart, please ignore this email.</p>
-          </div>
-          <div class="footer">
-            <p>&copy; 2026 Nalmart. All rights reserved.</p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
-  }
-
-  /**
-   * Password reset HTML template
-   */
-  private static getPasswordResetTemplate(firstName: string, token: string): string {
-    const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${token}`;
-    return `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: #4F46E5; color: white; padding: 20px; text-align: center; }
-          .content { padding: 30px; background: #f9fafb; }
-          .button { display: inline-block; padding: 12px 30px; background: #4F46E5; 
-                    color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
-          .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>Reset Your Password</h1>
-          </div>
-          <div class="content">
-            <p>Hi ${firstName},</p>
-            <p>We received a request to reset your Nalmart password. Click the button below to set a new password:</p>
-            <center>
-              <a href="${resetUrl}" class="button">Reset Password</a>
-            </center>
-            <p>Or copy and paste this link in your browser:</p>
-            <p style="word-break: break-all; color: #666;">${resetUrl}</p>
-            <p style="color: #e74c3c;"><strong>This link will expire in 1 hour.</strong></p>
-            <p>If you didn't request a password reset, please ignore this email.</p>
-          </div>
-          <div class="footer">
-            <p>&copy; 2026 Nalmart. All rights reserved.</p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
-  }
-
-  /**
-   * Login OTP HTML template
-   */
-  private static getLoginOTPTemplate(firstName: string, code: string): string {
-    return `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: #4F46E5; color: white; padding: 20px; text-align: center; }
-          .content { padding: 30px; background: #f9fafb; }
-          .code { font-size: 36px; font-weight: bold; color: #4F46E5; text-align: center; 
-                  padding: 20px; background: white; border-radius: 8px; margin: 20px 0; 
-                  letter-spacing: 10px; }
-          .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>Your Nalmart Login Code</h1>
-          </div>
-          <div class="content">
-            <p>Hi ${firstName},</p>
-            <p>Use the code below to sign in to your Nalmart account:</p>
-            <div class="code">${code}</div>
-            <p>This code will expire in 15 minutes.</p>
-            <p style="color: #e74c3c;"><strong>Never share this code with anyone.</strong></p>
-            <p>If you didn't request this code, please ignore this email.</p>
-          </div>
-          <div class="footer">
-            <p>&copy; 2026 Nalmart. All rights reserved.</p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
-  }
 }

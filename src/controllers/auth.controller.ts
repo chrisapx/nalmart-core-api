@@ -497,6 +497,7 @@ export const getActiveSessions = async (
 ): Promise<void> => {
   try {
     const userId = req.userId;
+    const currentSessionId = (req as any).sessionId;
 
     if (!userId) {
       throw new AuthenticationError('User not authenticated');
@@ -504,7 +505,16 @@ export const getActiveSessions = async (
 
     const sessions = await SessionService.getActiveSessions(userId);
 
-    sendSuccess(res, sessions, 'Active sessions retrieved successfully');
+    const mapped = sessions.map((s) => ({
+      id: s.session_id,
+      device_name: s.device_name,
+      ip_address: s.ip_address,
+      last_accessed: s.last_activity_at,
+      created_at: s.created_at,
+      is_current: s.session_id === currentSessionId,
+    }));
+
+    sendSuccess(res, mapped, 'Active sessions retrieved successfully');
   } catch (error) {
     next(error);
   }

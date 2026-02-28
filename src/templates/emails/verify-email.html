@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+<title>Verify Your Email — {{STORE_NAME}}</title>
+</head>
+<body style="margin:0;padding:0;background:#F3F4F6;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#F3F4F6;">
+  <tr><td align="center" style="padding:40px 16px;">
+
+    <!-- Card -->
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#FFFFFF;border-radius:8px;overflow:hidden;border:1px solid #E5E7EB;">
+
+      <!-- Orange top bar -->
+      <tr><td style="background:#F97316;height:4px;font-size:0;line-height:0;">&nbsp;</td></tr>
+
+      <!-- Header -->
+      <tr><td style="padding:28px 32px 0;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+          <tr>
+            <td>
+              <div style="font-size:22px;font-weight:800;color:#111827;letter-spacing:-0.5px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">{{STORE_NAME}}</div>
+            </td>
+            <td align="right">
+              <div style="font-size:11px;text-transform:uppercase;letter-spacing:1.2px;color:#F97316;font-weight:600;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">Email Verification</div>
+            </td>
+          </tr>
+        </table>
+      </td></tr>
+
+      <!-- Hero -->
+      <tr><td style="padding:28px 32px 0;">
+        <div style="font-size:24px;font-weight:800;color:#111827;line-height:1.25;margin-bottom:10px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">Verify your account, {{FIRST_NAME}}.</div>
+        <div style="font-size:14px;color:#6B7280;line-height:1.6;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">Use the code below to complete your registration. It expires in <strong style="color:#111827;">15 minutes</strong>.</div>
+      </td></tr>
+
+      <!-- Divider -->
+      <tr><td style="padding:24px 32px 0;"><div style="border-top:1px solid #E5E7EB;"></div></td></tr>
+
+      <!-- OTP code block -->
+      <tr><td style="padding:28px 32px;">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1.2px;color:#6B7280;font-weight:600;margin-bottom:16px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">Your Verification Code</div>
+        <table role="presentation" cellspacing="0" cellpadding="0">
+          <tr><td style="background:#FFF7ED;border:1px solid #FED7AA;border-left:3px solid #F97316;border-radius:6px;padding:18px 32px;">
+            <div style="font-size:40px;font-weight:800;color:#111827;letter-spacing:12px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">{{CODE}}</div>
+          </td></tr>
+        </table>
+        <div style="font-size:12px;color:#9CA3AF;margin-top:12px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">Never share this code with anyone — {{STORE_NAME}} will never ask for it.</div>
+      </td></tr>
+
+      <!-- Divider -->
+      <tr><td style="padding:0 32px;"><div style="border-top:1px solid #E5E7EB;"></div></td></tr>
+
+      <!-- Footer note -->
+      <tr><td style="padding:20px 32px;">
+        <div style="font-size:12px;color:#9CA3AF;line-height:1.6;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+          If you didn't create a {{STORE_NAME}} account, you can safely ignore this email.<br/>
+          Need help? <a href="mailto:{{SUPPORT_EMAIL}}" style="color:#F97316;text-decoration:none;">{{SUPPORT_EMAIL}}</a>
+        </div>
+      </td></tr>
+
+      <!-- Bottom bar -->
+      <tr><td style="background:#F9FAFB;border-top:1px solid #E5E7EB;padding:16px 32px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+          <tr>
+            <td style="font-size:11px;color:#9CA3AF;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+              &copy; {{YEAR}} {{STORE_NAME}} &middot; A product of Nalmart Holdings Co Ltd
+            </td>
+          </tr>
+        </table>
+      </td></tr>
+
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>
