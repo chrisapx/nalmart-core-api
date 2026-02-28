@@ -97,6 +97,10 @@ const startServer = async () => {
       logger.info(`🚀 Server running on port ${PORT} in ${env.NODE_ENV} mode`);
       logger.info(`📍 API Base URL: http://localhost:${PORT}/api/${env.API_VERSION}`);
       logger.info(`🏥 Health check: http://localhost:${PORT}/health`);
+
+      // Start background scheduler (cart reservation cleanup, etc.)
+      const { startScheduler } = require('./utils/scheduler');
+      startScheduler();
     });
   } catch (error) {
     logger.error('Failed to start server:', error);

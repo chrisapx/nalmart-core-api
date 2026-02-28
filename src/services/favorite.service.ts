@@ -1,6 +1,7 @@
 import { Op } from 'sequelize';
 import Favorite from '../models/Favorite';
 import Product from '../models/Product';
+import ProductImage from '../models/ProductImage';
 import User from '../models/User';
 import { NotFoundError, BadRequestError } from '../utils/errors';
 import logger from '../utils/logger';
@@ -102,13 +103,18 @@ export class FavoriteService {
           {
             model: Product,
             attributes: [
-              'id',
-              'name',
-              'sku',
-              'description',
-              'price',
-              'stock_status',
-              'is_published',
+              'id', 'name', 'slug', 'description', 'short_description',
+              'price', 'compare_at_price', 'stock_quantity', 'stock_status',
+              'rating', 'review_count', 'sales_count', 'is_published',
+            ],
+            include: [
+              {
+                model: ProductImage,
+                as: 'images',
+                attributes: ['id', 'url', 'is_primary', 'image_type', 'sort_order'],
+                order: [['sort_order', 'ASC']],
+                limit: 3,
+              } as any,
             ],
           },
         ],

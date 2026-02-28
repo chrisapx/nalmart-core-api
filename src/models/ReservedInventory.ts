@@ -10,6 +10,7 @@ import {
 } from 'sequelize-typescript';
 import Inventory from './Inventory';
 import Order from './Order';
+import Cart from './Cart';
 import User from './User';
 
 @Table({
@@ -36,10 +37,26 @@ export default class ReservedInventory extends Model {
   @ForeignKey(() => Order)
   @Column({
     type: DataType.BIGINT,
-    allowNull: false,
-    comment: 'Order this inventory is reserved for',
+    allowNull: true,
+    comment: 'Order this inventory is reserved for (null for cart-stage reservations)',
   })
-  order_id!: number;
+  order_id!: number | null;
+
+  @ForeignKey(() => Cart)
+  @Column({
+    type: DataType.BIGINT,
+    allowNull: true,
+    comment: 'Cart this inventory is reserved for (null once order is placed)',
+  })
+  cart_id!: number | null;
+
+  @Column({
+    type: DataType.ENUM('order', 'cart'),
+    defaultValue: 'order',
+    allowNull: false,
+    comment: 'Whether reservation is for a cart or an order',
+  })
+  reservation_type!: 'order' | 'cart';
 
   @ForeignKey(() => User)
   @Column({
@@ -130,6 +147,12 @@ export default class ReservedInventory extends Model {
     onDelete: 'CASCADE',
   })
   order?: Order;
+
+  @BelongsTo(() => Cart, {
+    foreignKey: 'cart_id',
+    onDelete: 'CASCADE',
+  })
+  cart?: Cart;
 
   @BelongsTo(() => User, {
     foreignKey: 'reserved_by',

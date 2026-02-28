@@ -19,6 +19,7 @@ import {
   resetPassword,
   requestLoginOTP,
   loginWithOTP,
+  changePassword,
 } from '../controllers/auth.controller';
 import { authenticate } from '../middleware/auth';
 
@@ -96,6 +97,7 @@ router.get('/google/failure', (req, res) => {
 
 // Profile
 router.get('/profile', authenticate, getProfile);
+router.post('/change-password', authenticate, changePassword);
 
 // Logout
 router.post('/logout', authenticate, logout);

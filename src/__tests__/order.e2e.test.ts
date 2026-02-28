@@ -7,7 +7,6 @@ import User from '../models/User';
 import Order from '../models/Order';
 import OrderItem from '../models/OrderItem';
 import Product from '../models/Product';
-import Product from '../models/Category';
 
 // Initialize test app
 import app from '../app';

@@ -10,6 +10,7 @@ import {
 } from 'sequelize-typescript';
 import Cart from './Cart';
 import Product from './Product';
+import ReservedInventory from './ReservedInventory';
 
 @Table({
   tableName: 'cart_items',
@@ -66,6 +67,14 @@ export default class CartItem extends Model {
   })
   variant_data!: string | null;
 
+  @ForeignKey(() => ReservedInventory)
+  @Column({
+    type: DataType.BIGINT,
+    allowNull: true,
+    comment: 'Inventory reservation held for this cart item',
+  })
+  reservation_id!: number | null;
+
   @CreatedAt
   created_at!: Date;
 
@@ -78,4 +87,7 @@ export default class CartItem extends Model {
 
   @BelongsTo(() => Product)
   product!: Product;
+
+  @BelongsTo(() => ReservedInventory, { foreignKey: 'reservation_id' })
+  reservation?: ReservedInventory;
 }

@@ -381,7 +381,50 @@ export const verifyEmail = async (
 
     await VerificationService.verifyEmail(user.id, code);
 
-    sendSuccess(res, null, 'Email verified successfully');
+    // Refresh user record so account_verified is up-to-date
+    await user.reload();
+
+    // Extract session info
+    const { ipAddress, userAgent } = SessionService.extractSessionInfo(req);
+
+    // Create a session so we can issue tokens immediately (auto-login)
+    const session = await SessionService.createSession({
+      userId: user.id,
+      ipAddress,
+      userAgent,
+      expiresIn: 7 * 24 * 60 * 60,
+    });
+
+    const tokens = generateTokenPair(
+      user.id,
+      session.session_id,
+      user.email,
+      user.account_verified
+    );
+
+    const response: AuthResponse = {
+      user: {
+        id: user.id,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        email: user.email,
+        phone: user.phone,
+        avatar_url: user.avatar_url,
+        status: user.status,
+        email_verified: user.email_verified,
+        account_verified: user.account_verified,
+        created_at: user.created_at,
+      },
+      tokens: {
+        access_token: tokens.access_token,
+        refresh_token: tokens.refresh_token,
+        expires_in: env.JWT_EXPIRES_IN,
+      },
+      requires_verification: false,
+    };
+
+    logger.info(`Email verified and session created for: ${user.email}`);
+    sendSuccess(res, response, 'Email verified successfully');
   } catch (error) {
     next(error);
   }
@@ -778,6 +821,49 @@ export const googleCallback = async (
     res.redirect(redirectUrl);
   } catch (error) {
     logger.error('Google OAuth callback error:', error);
+    next(error);
+  }
+};
+
+/**
+ * Change password (authenticated user changing their own password)
+ */
+export const changePassword = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { current_password, new_password } = req.body;
+
+    if (!current_password || !new_password) {
+      throw new ValidationError('Both current_password and new_password are required');
+    }
+
+    if (new_password.length < 8) {
+      throw new ValidationError('New password must be at least 8 characters');
+    }
+
+    if (current_password === new_password) {
+      throw new ValidationError('New password must be different from current password');
+    }
+
+    const userId = req.user?.id;
+    if (!userId) throw new ValidationError('User not authenticated');
+
+    // Fetch full user record (with password field)
+    const user = await User.findByPk(userId);
+    if (!user) throw new ValidationError('User not found');
+
+    const isCorrect = await user.comparePassword(current_password);
+    if (!isCorrect) throw new AuthenticationError('Current password is incorrect');
+
+    user.password = new_password; // BeforeUpdate hook will hash it
+    await user.save();
+
+    logger.info(`Password changed for user ${user.email}`);
+    sendSuccess(res, null, 'Password changed successfully');
+  } catch (error) {
     next(error);
   }
 };

@@ -4,6 +4,7 @@ import InventoryBatch from '../models/InventoryBatch';
 import InventoryHistory from '../models/InventoryHistory';
 import InventoryAlert from '../models/InventoryAlert';
 import ReservedInventory from '../models/ReservedInventory';
+import Cart from '../models/Cart';
 import Warehouse from '../models/Warehouse';
 import Product from '../models/Product';
 import User from '../models/User';
@@ -226,6 +227,7 @@ export class InventoryService {
       const reservation = await ReservedInventory.create({
         inventory_id,
         order_id,
+        reservation_type: 'order',
         quantity_reserved: quantity,
         reserved_by: user_id,
         reserved_price,
@@ -273,6 +275,81 @@ export class InventoryService {
     } catch (error) {
       logger.error('Error unreserving inventory:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Reserve inventory for a cart item (48-hour hold, released if cart is abandoned)
+   */
+  static async reserveForCart(
+    inventory_id: number,
+    cart_id: number,
+    quantity: number,
+    user_id?: number
+  ): Promise<ReservedInventory> {
+    try {
+      const inventory = await Inventory.findByPk(inventory_id);
+      if (!inventory) throw new NotFoundError('Inventory not found');
+
+      if (inventory.quantity_available < quantity) {
+        throw new ValidationError(
+          `Cannot reserve ${quantity} units for cart. Available: ${inventory.quantity_available}`
+        );
+      }
+
+      const reservation = await ReservedInventory.create({
+        inventory_id,
+        cart_id,
+        order_id: null,
+        reservation_type: 'cart',
+        quantity_reserved: quantity,
+        reserved_by: user_id,
+        status: 'pending',
+        expires_at: new Date(Date.now() + 48 * 60 * 60 * 1000), // 48-hour cart hold
+      });
+
+      inventory.quantity_reserved += quantity;
+      inventory.quantity_available = inventory.quantity_on_hand - inventory.quantity_reserved;
+      await inventory.save();
+
+      logger.info(`Cart reservation: ${quantity} units from inventory ${inventory_id} for cart ${cart_id}`);
+      return reservation;
+    } catch (error) {
+      logger.error('Error reserving inventory for cart:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Release all expired cart reservations (call every 15 minutes from scheduler)
+   */
+  static async releaseExpiredCartReservations(): Promise<number> {
+    try {
+      const expired = await ReservedInventory.findAll({
+        where: {
+          reservation_type: 'cart',
+          status: 'pending',
+          expires_at: { [Op.lt]: new Date() },
+        },
+      });
+
+      let released = 0;
+      for (const reservation of expired) {
+        try {
+          await this.unreserveInventory(reservation.id, 'Cart reservation expired after 48h');
+          released++;
+        } catch (err) {
+          logger.warn(`Failed to release reservation ${reservation.id}:`, err);
+        }
+      }
+
+      if (released > 0) {
+        logger.info(`Released ${released} expired cart reservation(s)`);
+      }
+      return released;
+    } catch (error) {
+      logger.error('Error releasing expired cart reservations:', error);
+      return 0;
     }
   }
 

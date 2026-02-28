@@ -9,10 +9,12 @@ import {
   ForeignKey,
   BelongsTo,
   HasMany,
+  HasOne,
 } from 'sequelize-typescript';
 import Category from './Category';
 import ProductImage from './ProductImage';
 import ProductVideo from './ProductVideo';
+import Inventory from './Inventory';
 
 @Table({
   tableName: 'products',
@@ -242,4 +244,7 @@ export default class Product extends Model {
 
   @HasMany(() => ProductVideo)
   videos!: ProductVideo[];
+
+  @HasOne(() => Inventory, { foreignKey: 'product_id', as: 'inventory' })
+  inventory?: Inventory;
 }

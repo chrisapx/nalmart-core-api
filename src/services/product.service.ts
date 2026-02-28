@@ -77,6 +77,7 @@ interface GetProductsQuery {
   min_price?: number;
   max_price?: number;
   min_rating?: number;
+  hide_out_of_stock?: boolean; // default true — hides products with stock_quantity = 0
 }
 
 interface PaginatedResponse<T> {
@@ -487,6 +488,7 @@ export class ProductService {
       min_price,
       max_price,
       min_rating,
+      hide_out_of_stock = true, // default: hide out-of-stock products from listings
     } = query;
 
     const offset = (page - 1) * limit;
@@ -533,6 +535,11 @@ export class ProductService {
 
     if (min_rating !== undefined) {
       where.rating = { [Op.gte]: min_rating };
+    }
+
+    // Hide zero-stock products from customer-facing listings by default
+    if (hide_out_of_stock) {
+      (where as any).stock_quantity = { [Op.gt]: 0 };
     }
 
     const orderClause: Order = [[sort_by, order]];

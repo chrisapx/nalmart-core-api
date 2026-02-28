@@ -19,15 +19,26 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Copy only production files
-COPY package*.json ./
-RUN npm ci --omit=dev
+# netcat for DB readiness check in entrypoint
+RUN apk add --no-cache netcat-openbsd
 
-# Copy built files from builder
+# Install production deps, then add sequelize-cli for running migrations
+COPY package*.json ./
+RUN npm ci --omit=dev && npm install sequelize-cli --no-save
+
+# Copy built app
 COPY --from=builder /app/dist ./dist
-COPY .env.example ./
+
+# Copy migration assets (Sequelize CLI needs these at runtime)
+COPY .sequelizerc ./
+COPY src/migrations ./src/migrations
+COPY src/config/sequelize.config.js ./src/config/sequelize.config.js
+
+# Entrypoint: wait for DB → migrate → start
+COPY docker-entrypoint.sh ./docker-entrypoint.sh
+RUN chmod +x ./docker-entrypoint.sh
 
 ENV NODE_ENV=production
 EXPOSE 3000
 
-CMD ["node", "dist/app.js"]
+ENTRYPOINT ["/app/docker-entrypoint.sh"]

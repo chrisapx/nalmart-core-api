@@ -1,7 +1,10 @@
 import Cart from '../models/Cart';
 import CartItem from '../models/CartItem';
 import Product from '../models/Product';
+import ProductImage from '../models/ProductImage';
+import Inventory from '../models/Inventory';
 import User from '../models/User';
+import { InventoryService } from './inventory.service';
 import { NotFoundError, BadRequestError, ValidationError } from '../utils/errors';
 import logger from '../utils/logger';
 import { Op } from 'sequelize';
@@ -17,11 +20,25 @@ export class CartService {
         include: [
           {
             model: CartItem,
-            attributes: ['id', 'product_id', 'quantity', 'unit_price', 'total_price'],
+            attributes: ['id', 'product_id', 'quantity', 'unit_price', 'total_price', 'variant_data', 'reservation_id'],
             include: [
               {
                 model: Product,
-                attributes: ['id', 'name', 'sku', 'price', 'stock_quantity'],
+                attributes: ['id', 'name', 'slug', 'price', 'stock_quantity'],
+                include: [
+                  {
+                    model: ProductImage,
+                    as: 'images',
+                    attributes: ['url', 'is_primary', 'sort_order'],
+                    required: false,
+                  },
+                  {
+                    model: Inventory,
+                    as: 'inventory',
+                    attributes: ['quantity_available', 'stock_status'],
+                    required: false,
+                  },
+                ],
               },
             ],
           },
@@ -78,9 +95,12 @@ export class CartService {
         throw new NotFoundError(`Product ${productId} not found`);
       }
 
-      // Check stock
-      if (product.stock_quantity < quantity) {
-        throw new BadRequestError(`Insufficient stock. Available: ${product.stock_quantity}`);
+      // Check stock via inventory table, fallback to product.stock_quantity
+      const inventory = await Inventory.findOne({ where: { product_id: productId } });
+      const availableStock = inventory ? inventory.quantity_available : product.stock_quantity;
+
+      if (availableStock < quantity) {
+        throw new BadRequestError(`Insufficient stock. Available: ${availableStock}`);
       }
 
       // Validate quantity
@@ -109,16 +129,37 @@ export class CartService {
       let cartItem: CartItem;
 
       if (existingItem) {
-        // Update quantity
+        // Update quantity — release old reservation and create a new one
         const newQuantity = existingItem.quantity + quantity;
-        if (product.stock_quantity < newQuantity) {
-          throw new BadRequestError(`Insufficient stock. Available: ${product.stock_quantity}`);
+        const totalAvail = inventory ? inventory.quantity_available : product.stock_quantity;
+        // If there's an existing reservation the available stock already excludes it,
+        // so we only need to check if the *delta* fits in what's still free
+        const delta = quantity; // additional units requested
+        if ((inventory ? inventory.quantity_available : product.stock_quantity) < delta) {
+          throw new BadRequestError(`Insufficient stock. Available: ${totalAvail}`);
         }
         existingItem.quantity = newQuantity;
         existingItem.total_price = newQuantity * product.price;
+
+        // Extend / replace reservation for the extra delta
+        if (inventory) {
+          // Release old full reservation, re-reserve full new quantity
+          if (existingItem.reservation_id) {
+            try { await InventoryService.unreserveInventory(existingItem.reservation_id, 'Cart quantity update'); } catch (_) {}
+          }
+          const newReservation = await InventoryService.reserveForCart(inventory.id, cart.id, newQuantity, userId);
+          existingItem.reservation_id = newReservation.id;
+        }
+
         cartItem = await existingItem.save();
       } else {
         // Create new cart item
+        let reservationId: number | null = null;
+        if (inventory) {
+          const reservation = await InventoryService.reserveForCart(inventory.id, cart.id, quantity, userId);
+          reservationId = reservation.id;
+        }
+
         cartItem = await CartItem.create({
           cart_id: cart.id,
           product_id: productId,
@@ -126,6 +167,7 @@ export class CartService {
           unit_price: product.price,
           total_price: quantity * product.price,
           variant_data: normalizedVariantData,
+          reservation_id: reservationId,
         });
       }
 
@@ -161,10 +203,13 @@ export class CartService {
         throw new NotFoundError('Cart item does not belong to your cart');
       }
 
-      // Verify product stock
+      // Verify product stock via inventory table
       const product = await Product.findByPk(cartItem.product_id);
-      if (!product || product.stock_quantity < quantity) {
-        throw new BadRequestError(`Insufficient stock. Available: ${product?.stock_quantity || 0}`);
+      const inventory = await Inventory.findOne({ where: { product_id: cartItem.product_id } });
+      const availableStock = inventory ? inventory.quantity_available : (product?.stock_quantity || 0);
+
+      if (!product || availableStock < quantity) {
+        throw new BadRequestError(`Insufficient stock. Available: ${availableStock}`);
       }
 
       if (quantity < 1) {
@@ -173,6 +218,16 @@ export class CartService {
 
       cartItem.quantity = quantity;
       cartItem.total_price = quantity * product.price;
+
+      // Re-reserve with updated quantity
+      if (inventory) {
+        if (cartItem.reservation_id) {
+          try { await InventoryService.unreserveInventory(cartItem.reservation_id, 'Cart quantity update'); } catch (_) {}
+        }
+        const newReservation = await InventoryService.reserveForCart(inventory.id, cartItem.cart_id, quantity, userId);
+        cartItem.reservation_id = newReservation.id;
+      }
+
       const updated = await cartItem.save();
 
       // Update cart totals
@@ -206,6 +261,11 @@ export class CartService {
         throw new NotFoundError('Cart item does not belong to your cart');
       }
 
+      // Release inventory reservation
+      if (cartItem.reservation_id) {
+        try { await InventoryService.unreserveInventory(cartItem.reservation_id, 'Item removed from cart'); } catch (_) {}
+      }
+
       const cartId = cartItem.cart_id;
       await cartItem.destroy();
 
@@ -226,6 +286,14 @@ export class CartService {
     try {
       const cart = await Cart.findOne({ where: { user_id: userId } });
       if (!cart) return;
+
+      // Release all inventory reservations first
+      const items = await CartItem.findAll({ where: { cart_id: cart.id } });
+      for (const item of items) {
+        if (item.reservation_id) {
+          try { await InventoryService.unreserveInventory(item.reservation_id, 'Cart cleared'); } catch (_) {}
+        }
+      }
 
       await CartItem.destroy({ where: { cart_id: cart.id } });
 

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import * as FavoriteController from '../controllers/favorite.controller';
 import { validateBody, validateQuery } from '../middleware/validation';
+import { authenticate } from '../middleware/auth';
 import {
   addFavoriteSchema,
   updateFavoriteSchema,
@@ -46,6 +47,7 @@ router.get('/product/:productId/status', FavoriteController.isFavorited);
  */
 router.delete(
   '/product/:productId',
+  authenticate,
   FavoriteController.removeFavorite
 );
 
@@ -55,6 +57,7 @@ router.delete(
  */
 router.post(
   '/',
+  authenticate,
   validateBody(addFavoriteSchema),
   FavoriteController.addFavorite
 );
@@ -65,6 +68,7 @@ router.post(
  */
 router.get(
   '/',
+  authenticate,
   validateQuery(paginationSchema),
   FavoriteController.getUserFavorites
 );

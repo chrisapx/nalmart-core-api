@@ -1,6 +1,7 @@
 import Order from '../models/Order';
 import OrderItem from '../models/OrderItem';
 import Product from '../models/Product';
+import ProductImage from '../models/ProductImage';
 import User from '../models/User';
 import ReservedInventory from '../models/ReservedInventory';
 import Inventory from '../models/Inventory';
@@ -67,9 +68,10 @@ export class OrderService {
         throw new BadRequestError('Order must contain at least one item');
       }
 
-      // Verify and fetch products
+      // Verify and fetch products (include images for snapshot)
       const products = await Product.findAll({
         where: { id: data.items.map((item) => item.product_id) },
+        include: [{ model: ProductImage, limit: 1, order: [['is_primary', 'DESC'], ['id', 'ASC']] }],
       });
 
       if (products.length !== data.items.length) {
@@ -120,7 +122,7 @@ export class OrderService {
           product_id: item.product_id,
           product_name: product.name,
           product_sku: product.sku || '',
-          product_image_url: '', // Will be fetched from ProductImage if needed
+          product_image_url: (product as any).images?.[0]?.url ?? '',
           quantity: item.quantity,
           unit_price: unitPrice,
           total_price: totalPrice,
@@ -148,7 +150,10 @@ export class OrderService {
             subtotal
           );
         } else {
-          throw new BadRequestError('No delivery methods available');
+          // No delivery methods in DB yet — fall back to free shipping
+          // rather than blocking order creation entirely.
+          logger.warn('No delivery methods found in DB — using 0 shipping fee as fallback');
+          shippingAmount = 0;
         }
       }
 
@@ -184,19 +189,49 @@ export class OrderService {
           ...item,
         });
 
-        // Reserve inventory
+        // Reserve inventory — convert any existing cart reservation, else create a new order reservation
         const inventory = await Inventory.findOne({
           where: { product_id: item.product_id },
         });
 
         if (inventory) {
-          await InventoryService.reserveInventory(
-            inventory.id,
-            order.id,
-            item.quantity,
-            data.user_id,
-            item.unit_price
-          );
+          // Look for an existing pending cart reservation from this user for this inventory
+          const cartReservation = await ReservedInventory.findOne({
+            where: {
+              inventory_id: inventory.id,
+              reserved_by: data.user_id,
+              reservation_type: 'cart',
+              status: 'pending',
+            },
+          });
+
+          if (cartReservation) {
+            // Convert cart reservation → order reservation (no double-counting)
+            cartReservation.order_id = order.id;
+            cartReservation.cart_id = null;
+            cartReservation.reservation_type = 'order';
+            cartReservation.status = 'allocated';
+            cartReservation.reserved_price = item.unit_price;
+            cartReservation.allocated_at = new Date();
+            // Adjust quantity if different (edge case: qty changed at checkout)
+            const qtyDiff = item.quantity - cartReservation.quantity_reserved;
+            if (qtyDiff !== 0) {
+              inventory.quantity_reserved += qtyDiff;
+              inventory.quantity_available = inventory.quantity_on_hand - inventory.quantity_reserved;
+              await inventory.save();
+              cartReservation.quantity_reserved = item.quantity;
+            }
+            await cartReservation.save();
+          } else {
+            // No cart reservation — create a fresh order reservation
+            await InventoryService.reserveInventory(
+              inventory.id,
+              order.id,
+              item.quantity,
+              data.user_id,
+              item.unit_price
+            );
+          }
         }
       }
 
@@ -289,7 +324,7 @@ export class OrderService {
         include: [
           {
             model: OrderItem,
-            attributes: ['product_id', 'product_name', 'quantity', 'unit_price', 'total_price'],
+            attributes: ['product_id', 'product_name', 'product_image_url', 'quantity', 'unit_price', 'total_price'],
           },
         ],
         limit,
