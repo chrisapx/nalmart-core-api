@@ -26,6 +26,12 @@ import analyticsRoutes from './routes/analytics.routes';
 
 const app: Application = express();
 
+// Trust the first proxy hop (nginx, Cloudflare, etc.) so that
+// express-rate-limit reads X-Forwarded-For as the real client IP.
+// Without this, all traffic appears to come from the same proxy IP
+// and everyone shares one rate-limit bucket.
+app.set('trust proxy', 1);
+
 // Middleware
 app.use(helmet());
 app.use(cors({
