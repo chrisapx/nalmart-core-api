@@ -64,7 +64,7 @@ export default class Order extends Model {
   payment_status!: string;
 
   @Column({
-    type: DataType.ENUM('pending', 'processing', 'shipped', 'delivered', 'cancelled'),
+    type: DataType.ENUM('pending', 'processing', 'picked', 'packed', 'shipped', 'in_transit', 'out_for_delivery', 'delivered', 'cancelled'),
     defaultValue: 'pending',
   })
   fulfillment_status!: string;
@@ -166,6 +166,42 @@ export default class Order extends Model {
     allowNull: true,
   })
   cancelled_at!: Date;
+
+  @Column({
+    type: DataType.DATE,
+    allowNull: true,
+  })
+  confirmed_at!: Date;
+
+  @Column({
+    type: DataType.DATE,
+    allowNull: true,
+  })
+  processed_at!: Date;
+
+  @Column({
+    type: DataType.DATE,
+    allowNull: true,
+  })
+  picked_at!: Date;
+
+  @Column({
+    type: DataType.DATE,
+    allowNull: true,
+  })
+  packed_at!: Date;
+
+  @Column({
+    type: DataType.DATE,
+    allowNull: true,
+  })
+  in_transit_at!: Date;
+
+  @Column({
+    type: DataType.DATE,
+    allowNull: true,
+  })
+  out_for_delivery_at!: Date;
 
   @Column({
     type: DataType.TEXT,

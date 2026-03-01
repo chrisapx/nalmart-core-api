@@ -41,6 +41,12 @@ interface UpdateOrderInput {
   shipped_at?: Date;
   delivered_at?: Date;
   cancelled_at?: Date;
+  confirmed_at?: Date;
+  processed_at?: Date;
+  picked_at?: Date;
+  packed_at?: Date;
+  in_transit_at?: Date;
+  out_for_delivery_at?: Date;
   admin_notes?: string;
 }
 
@@ -355,7 +361,23 @@ export class OrderService {
 
       const where: any = {};
 
-      if (status) where.status = status;
+      if (status) {
+        // Match orders by status OR by fulfillment_status mapping (handles legacy orders)
+        const fulfillmentEquiv: Record<string, string[]> = {
+          processing: ['processing', 'picked', 'packed'],
+          shipped:    ['shipped', 'in_transit', 'out_for_delivery'],
+          delivered:  ['delivered'],
+        };
+        const equiv = fulfillmentEquiv[status];
+        if (equiv) {
+          where[Op.or] = [
+            { status },
+            { fulfillment_status: { [Op.in]: equiv } },
+          ];
+        } else {
+          where.status = status;
+        }
+      }
       if (paymentStatus) where.payment_status = paymentStatus;
       if (fulfillmentStatus) where.fulfillment_status = fulfillmentStatus;
 
@@ -371,6 +393,10 @@ export class OrderService {
           {
             model: User,
             attributes: ['id', 'first_name', 'last_name', 'email'],
+          },
+          {
+            model: OrderItem,
+            attributes: ['id', 'product_id', 'product_name', 'product_sku', 'product_image_url', 'quantity', 'unit_price', 'total_price'],
           },
         ],
         limit,
@@ -405,14 +431,39 @@ export class OrderService {
       // Update fields
       if (data.status) order.status = data.status;
       if (data.payment_status) order.payment_status = data.payment_status;
-      if (data.fulfillment_status) order.fulfillment_status = data.fulfillment_status;
+      if (data.fulfillment_status) {
+        order.fulfillment_status = data.fulfillment_status;
+        // Auto-stamp the stage timestamp when first advancing to it
+        const stageTimestampMap: Record<string, keyof Order> = {
+          confirmed:        'confirmed_at',
+          processing:       'processed_at',
+          picked:           'picked_at',
+          packed:           'packed_at',
+          shipped:          'shipped_at',
+          in_transit:       'in_transit_at',
+          out_for_delivery: 'out_for_delivery_at',
+          delivered:        'delivered_at',
+          cancelled:        'cancelled_at',
+        };
+        const tsField = stageTimestampMap[data.fulfillment_status];
+        if (tsField && !(order as any)[tsField]) {
+          (order as any)[tsField] = new Date();
+        }
+      }
       if (data.payment_method) order.payment_method = data.payment_method;
       if (data.payment_transaction_id) order.payment_transaction_id = data.payment_transaction_id;
       if (data.tracking_number) order.tracking_number = data.tracking_number;
       if (data.shipping_carrier) order.shipping_carrier = data.shipping_carrier;
+      // Allow explicit timestamp overrides
       if (data.shipped_at) order.shipped_at = data.shipped_at;
       if (data.delivered_at) order.delivered_at = data.delivered_at;
       if (data.cancelled_at) order.cancelled_at = data.cancelled_at;
+      if (data.confirmed_at) order.confirmed_at = data.confirmed_at;
+      if (data.processed_at) order.processed_at = data.processed_at;
+      if (data.picked_at) order.picked_at = data.picked_at;
+      if (data.packed_at) order.packed_at = data.packed_at;
+      if (data.in_transit_at) order.in_transit_at = data.in_transit_at;
+      if (data.out_for_delivery_at) order.out_for_delivery_at = data.out_for_delivery_at;
       if (data.admin_notes) order.admin_notes = data.admin_notes;
 
       await order.save();

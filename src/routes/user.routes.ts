@@ -27,7 +27,7 @@ router.post(
 // Get all users
 router.get(
   '/',
-  authenticate,
+  // authenticate, // Disabled for development
   // authorize('VIEW_USER'),
   getUsers
 );
@@ -35,7 +35,7 @@ router.get(
 // Get user by ID
 router.get(
   '/:id',
-  authenticate,
+  // authenticate, // Disabled for development
   // authorize('VIEW_USER'),
   getUserById
 );

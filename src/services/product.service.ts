@@ -549,6 +549,7 @@ export class ProductService {
       limit,
       offset,
       order: orderClause,
+      distinct: true,
       include: [
         {
           model: Category,
