@@ -2,6 +2,8 @@ import { Request, Response, NextFunction } from 'express';
 import { AuthRequest } from '../types/express';
 import { LoginRequest, RegisterRequest, AuthResponse, RefreshTokenRequest } from '../types/auth.types';
 import User from '../models/User';
+import Role from '../models/Role';
+import Permission from '../models/Permission';
 import { generateTokenPair, verifyRefreshToken, getTokenExpiry } from '../utils/jwt';
 import { blacklistToken, isTokenBlacklisted } from '../config/redis';
 import { sendSuccess, sendError } from '../utils/response';
@@ -351,7 +353,45 @@ export const getProfile = async (
       throw new AuthenticationError('User not found');
     }
 
-    sendSuccess(res, user, 'Profile retrieved successfully');
+    // Re-fetch user with roles and permissions so the frontend can drive
+    // permission-based UI (nav visibility, page access guards, etc.)
+    const userWithRoles = await User.findByPk(user.id, {
+      attributes: { exclude: ['password'] },
+      include: [
+        {
+          model: Role,
+          through: { attributes: [] },
+          include: [
+            {
+              model: Permission,
+              through: { attributes: [] },
+              attributes: ['id', 'name', 'slug', 'category'],
+            },
+          ],
+          attributes: ['id', 'name', 'slug', 'description'],
+        },
+      ],
+    });
+
+    // Flatten unique permission slugs for easy frontend consumption
+    const allPermissions: string[] = [];
+    const isSuperAdmin = userWithRoles?.roles?.some((r) =>
+      r.permissions?.some((p) => p.slug === 'ALL_FUNCTIONS')
+    ) ?? false;
+
+    userWithRoles?.roles?.forEach((role) => {
+      role.permissions?.forEach((perm) => {
+        if (!allPermissions.includes(perm.slug)) {
+          allPermissions.push(perm.slug);
+        }
+      });
+    });
+
+    sendSuccess(res, {
+      ...userWithRoles?.toJSON(),
+      is_super_admin: isSuperAdmin,
+      permission_slugs: allPermissions,
+    }, 'Profile retrieved successfully');
   } catch (error) {
     next(error);
   }

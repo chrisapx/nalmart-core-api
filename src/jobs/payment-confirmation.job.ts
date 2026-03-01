@@ -5,6 +5,7 @@ import Order from '../models/Order';
 import OrderItem from '../models/OrderItem';
 import User from '../models/User';
 import { EmailService } from '../services/email.service';
+import { WarehouseService } from '../services/warehouse.service';
 import { PAYMENT_METHOD_LABELS } from '../models/Payment';
 import logger from '../utils/logger';
 

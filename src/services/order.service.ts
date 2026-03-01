@@ -8,6 +8,7 @@ import Inventory from '../models/Inventory';
 import { InventoryService } from './inventory.service';
 import DeliveryService from './delivery.service';
 import { EmailService } from './email.service';
+import { WarehouseService } from './warehouse.service';
 import logger from '../utils/logger';
 import { NotFoundError, BadRequestError, ValidationError } from '../utils/errors';
 import { Op } from 'sequelize';
@@ -428,6 +429,8 @@ export class OrderService {
       const order = await Order.findByPk(orderId);
       if (!order) throw new NotFoundError('Order not found');
 
+      const prevStatus = order.status;
+
       // Update fields
       if (data.status) order.status = data.status;
       if (data.payment_status) order.payment_status = data.payment_status;
@@ -467,6 +470,16 @@ export class OrderService {
       if (data.admin_notes) order.admin_notes = data.admin_notes;
 
       await order.save();
+
+      // Automatically create warehouse job when order becomes confirmed/processing
+      const nowActive = ['confirmed', 'processing'].includes(order.status);
+      const wasInactive = !['confirmed', 'processing', 'shipped', 'delivered'].includes(prevStatus);
+      if (nowActive && wasInactive) {
+        WarehouseService.createJob(orderId).catch((err) =>
+          logger.warn(`[Warehouse] Could not create job for order ${orderId}: ${err?.message}`)
+        );
+      }
+
       logger.info(`✅ Order updated: ${order.order_number}`);
       return order;
     } catch (error) {
@@ -585,6 +598,12 @@ export class OrderService {
       order.payment_method = paymentMethod;
 
       await order.save();
+
+      // Trigger warehouse fulfilment pipeline
+      WarehouseService.createJob(order.id).catch((err) =>
+        logger.warn(`[Warehouse] Could not create job for order ${order.id}: ${err?.message}`)
+      );
+
       logger.info(`✅ Payment recorded for order: ${order.order_number}`);
       return order;
     } catch (error) {

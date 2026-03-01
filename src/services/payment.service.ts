@@ -5,6 +5,7 @@ import DeliveryAddress from '../models/DeliveryAddress';
 import DeliveryMethod from '../models/DeliveryMethod';
 import Payment, { PaymentMethod, PaymentStatus, PAYMENT_METHOD_LABELS } from '../models/Payment';
 import { EmailService, OrderEmailItem, OrderEmailData } from './email.service';
+import { WarehouseService } from './warehouse.service';
 import { NotFoundError, BadRequestError } from '../utils/errors';
 import logger from '../utils/logger';
 
@@ -226,6 +227,11 @@ export class PaymentService {
     );
 
     await order.reload({ include: [{ model: OrderItem }, { model: User }] });
+
+    // Trigger warehouse fulfilment pipeline
+    WarehouseService.createJob(order.id).catch((err) =>
+      logger.warn(`[Warehouse] Could not create job for order ${order.id}: ${err?.message}`)
+    );
 
     // Send confirmation email
     EmailService.sendOrderConfirmed(this.assembleEmailData(order as any, payment)).catch(() => {});

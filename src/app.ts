@@ -24,6 +24,8 @@ import campaignRoutes from './routes/campaign.routes';
 import cartRoutes from './routes/cart.routes';
 import analyticsRoutes from './routes/analytics.routes';
 import paymentRoutes from './routes/payment.routes';
+import warehouseRoutes from './routes/warehouse.routes';
+import rbacRoutes from './routes/rbac.routes';
 import { startPaymentConfirmationJob } from './jobs/payment-confirmation.job';
 
 const app: Application = express();
@@ -79,6 +81,8 @@ app.use(`/api/${env.API_VERSION}/campaigns`, campaignRoutes);
 app.use(`/api/${env.API_VERSION}/cart`, cartRoutes);
 app.use(`/api/${env.API_VERSION}/analytics`, analyticsRoutes);
 app.use(`/api/${env.API_VERSION}/payments`, paymentRoutes);
+app.use(`/api/${env.API_VERSION}/warehouse`, warehouseRoutes);
+app.use(`/api/${env.API_VERSION}/rbac`, rbacRoutes);
 
 // 404 handler
 app.use(notFoundHandler);
@@ -113,6 +117,12 @@ const startServer = async () => {
 
       // Start COD payment-confirmation cron job (every 3 min)
       startPaymentConfirmationJob();
+
+      // Backfill warehouse jobs for orders confirmed before this feature existed
+      const { WarehouseService } = require('./services/warehouse.service');
+      WarehouseService.backfillExistingOrders().catch((err: any) =>
+        logger.warn('Warehouse backfill failed:', err)
+      );
     });
   } catch (error) {
     logger.error('Failed to start server:', error);
