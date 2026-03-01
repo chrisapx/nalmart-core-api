@@ -34,6 +34,9 @@ COPY .sequelizerc ./
 COPY src/migrations ./src/migrations
 COPY src/config/sequelize.config.js ./src/config/sequelize.config.js
 
+# Copy email templates (required at runtime — not included in tsc output)
+COPY src/templates ./src/templates
+
 # Entrypoint: wait for DB → migrate → start
 COPY docker-entrypoint.sh ./docker-entrypoint.sh
 RUN chmod +x ./docker-entrypoint.sh
