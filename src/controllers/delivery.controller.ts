@@ -28,6 +28,94 @@ export const getAllDeliveries = async (
 };
 
 /**
+ * Get stores for delivery pricing
+ */
+export const getStores = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const stores = await DeliveryService.getStores({
+      is_active:
+        req.query.is_active !== undefined
+          ? String(req.query.is_active).toLowerCase() === 'true'
+          : undefined,
+      is_official:
+        req.query.is_official !== undefined
+          ? String(req.query.is_official).toLowerCase() === 'true'
+          : undefined,
+    });
+
+    successResponse(res, stores, 'Stores retrieved successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Create store for delivery pricing
+ */
+export const createStore = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const store = await DeliveryService.createStore(req.body);
+    successResponse(res, store, 'Store created successfully', 201);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Update store
+ */
+export const updateStore = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const idStr = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const storeId = parseInt(idStr as string, 10);
+
+    if (isNaN(storeId) || storeId < 1) {
+      throw new Error('Invalid store ID');
+    }
+
+    const store = await DeliveryService.updateStore(storeId, req.body);
+    successResponse(res, store, 'Store updated successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Delete store
+ */
+export const deleteStore = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const idStr = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const storeId = parseInt(idStr as string, 10);
+
+    if (isNaN(storeId) || storeId < 1) {
+      throw new Error('Invalid store ID');
+    }
+
+    await DeliveryService.deleteStore(storeId);
+    successResponse(res, null, 'Store deleted successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Calculate shipping fee for a delivery method
  */
 export const calculateShippingFee = async (
@@ -387,7 +475,70 @@ export const calculateFeeByCategory = async (
   }
 };
 
+/**
+ * POST /api/v1/deliveries/quote
+ * Calculate delivery quote for the current cart + destination.
+ */
+export const quoteDeliveryFee = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (!req.user?.id) throw new Error('Authentication required');
+
+    const result = await DeliveryService.quoteDeliveryFee({
+      user_id: req.user.id,
+      items: req.body.items,
+      delivery_address_id: req.body.delivery_address_id,
+      shipping_address: req.body.shipping_address,
+    });
+
+    successResponse(res, result, 'Delivery quote calculated successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * GET /api/v1/deliveries/location/autocomplete
+ */
+export const autocompleteAddress = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const input = String(req.query.input || '').trim();
+    const sessionToken = req.query.session_token ? String(req.query.session_token) : undefined;
+    const suggestions = await DeliveryService.autocompleteAddress(input, sessionToken);
+    successResponse(res, suggestions, 'Address suggestions retrieved');
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * POST /api/v1/deliveries/location/resolve
+ */
+export const resolveAddressLocation = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const resolved = await DeliveryService.resolveAddressLocation(req.body);
+    successResponse(res, resolved, 'Address details resolved');
+  } catch (error) {
+    next(error);
+  }
+};
+
 export default {
+  getStores,
+  createStore,
+  updateStore,
+  deleteStore,
   calculateShippingFee,
   calculateFeeByCategory,
   createDelivery,
@@ -398,6 +549,9 @@ export default {
   generateTrackingNumber,
   getAvailableMethods,
   getCategorizedMethods,
+  quoteDeliveryFee,
+  autocompleteAddress,
+  resolveAddressLocation,
   createDeliveryMethod,
   updateDeliveryMethod,
   createDeliveryAddress,

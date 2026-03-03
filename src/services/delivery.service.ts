@@ -2,14 +2,104 @@ import { Op } from 'sequelize';
 import Delivery from '../models/Delivery';
 import DeliveryMethod from '../models/DeliveryMethod';
 import DeliveryAddress from '../models/DeliveryAddress';
+import Store from '../models/Store';
 import Order from '../models/Order';
 import OrderItem from '../models/OrderItem';
 import Product from '../models/Product';
 import { NotFoundError, BadRequestError } from '../utils/errors';
 import logger from '../utils/logger';
 import OrderService from './order.service';
+import DeliveryPricingService from './delivery-pricing.service';
 
 export class DeliveryService {
+  static async getStores(filters?: {
+    is_active?: boolean;
+    is_official?: boolean;
+  }): Promise<Store[]> {
+    const where: Record<string, any> = {};
+
+    if (filters?.is_active !== undefined) {
+      where.is_active = filters.is_active;
+    }
+
+    if (filters?.is_official !== undefined) {
+      where.is_official = filters.is_official;
+    }
+
+    return Store.findAll({
+      where,
+      order: [
+        ['is_official', 'DESC'],
+        ['is_active', 'DESC'],
+        ['id', 'ASC'],
+      ],
+    });
+  }
+
+  static async createStore(data: {
+    name: string;
+    logo_url?: string;
+    street?: string;
+    city?: string;
+    state?: string;
+    postal_code?: string;
+    country?: string;
+    latitude?: number;
+    longitude?: number;
+    per_km_delivery_fees?: number;
+    base_delivery_fee?: number;
+    is_active?: boolean;
+    is_official?: boolean;
+    metadata?: Record<string, any>;
+  }): Promise<Store> {
+    if (data.is_official) {
+      await Store.update({ is_official: false }, { where: { is_official: true } });
+    }
+
+    return Store.create(data as any);
+  }
+
+  static async updateStore(
+    storeId: number,
+    data: Partial<{
+      name: string;
+      logo_url: string;
+      street: string;
+      city: string;
+      state: string;
+      postal_code: string;
+      country: string;
+      latitude: number;
+      longitude: number;
+      per_km_delivery_fees: number;
+      base_delivery_fee: number;
+      is_active: boolean;
+      is_official: boolean;
+      metadata: Record<string, any>;
+    }>,
+  ): Promise<Store> {
+    const store = await Store.findByPk(storeId);
+    if (!store) {
+      throw new NotFoundError('Store not found');
+    }
+
+    if (data.is_official) {
+      await Store.update({ is_official: false }, { where: { id: { [Op.ne]: storeId } } });
+    }
+
+    await store.update(data as any);
+    return store;
+  }
+
+  static async deleteStore(storeId: number): Promise<void> {
+    const store = await Store.findByPk(storeId);
+    if (!store) {
+      throw new NotFoundError('Store not found');
+    }
+
+    await store.destroy();
+  }
+
   /**
    * Calculate shipping fee based on delivery method and order details
    */
@@ -394,6 +484,12 @@ export class DeliveryService {
     country: string;
     phone: string;
     is_default?: boolean;
+    latitude?: number;
+    longitude?: number;
+    place_id?: string;
+    formatted_address?: string;
+    vicinity?: string;
+    location_source?: string;
   }): Promise<DeliveryAddress> {
     try {
       // If marking as default, unset other defaults for this user
@@ -404,7 +500,25 @@ export class DeliveryService {
         );
       }
 
-      return await DeliveryAddress.create(data);
+      const address = await DeliveryAddress.create(data as any);
+
+      try {
+        if (data.latitude !== undefined && data.longitude !== undefined) {
+          const distance = await DeliveryPricingService.estimateDistanceFromOfficialStore(
+            Number(data.latitude),
+            Number(data.longitude),
+          );
+
+          if (distance.distance_km !== null && distance.distance_km !== undefined) {
+            await address.update({
+              distance_km_from_store: distance.distance_km,
+              distance_calculated_at: new Date(),
+            } as any);
+          }
+        }
+      } catch (_) {}
+
+      return address;
     } catch (error) {
       logger.error('Error creating delivery address:', error);
       throw new Error('Failed to create delivery address');
@@ -452,6 +566,22 @@ export class DeliveryService {
       }
 
       await address.update(data);
+
+      const lat = Number((address as any).latitude);
+      const lng = Number((address as any).longitude);
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        try {
+          const distance = await DeliveryPricingService.estimateDistanceFromOfficialStore(lat, lng);
+
+          if (distance.distance_km !== null && distance.distance_km !== undefined) {
+            await address.update({
+              distance_km_from_store: distance.distance_km,
+              distance_calculated_at: new Date(),
+            } as any);
+          }
+        } catch (_) {}
+      }
+
       return address;
     } catch (error) {
       if (error instanceof NotFoundError) {
@@ -606,6 +736,42 @@ export class DeliveryService {
         free,
       },
     };
+  }
+
+  static async quoteDeliveryFee(data: {
+    user_id: number;
+    items: Array<{ product_id: number; quantity: number }>;
+    delivery_address_id?: number;
+    shipping_address?: Record<string, any>;
+  }): Promise<any> {
+    return DeliveryPricingService.quoteDeliveryFee({
+      userId: data.user_id,
+      items: data.items,
+      deliveryAddressId: data.delivery_address_id,
+      shippingAddress: data.shipping_address,
+    });
+  }
+
+  static async autocompleteAddress(input: string, sessionToken?: string): Promise<any[]> {
+    return DeliveryPricingService.searchAddressSuggestions(input, sessionToken);
+  }
+
+  static async resolveAddressLocation(input: {
+    place_id?: string;
+    latitude?: number;
+    longitude?: number;
+    address?: string;
+    session_token?: string;
+    source?: 'manual' | 'autocomplete' | 'current_location';
+  }): Promise<any> {
+    return DeliveryPricingService.resolveAddressLocation({
+      place_id: input.place_id,
+      latitude: input.latitude,
+      longitude: input.longitude,
+      address: input.address,
+      sessionToken: input.session_token,
+      source: input.source,
+    });
   }
 }
 

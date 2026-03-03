@@ -38,15 +38,24 @@ export const createOrderSchema = Joi.object({
       'any.only': 'Invalid payment method',
     }),
 
+  delivery_address_id: Joi.number().integer().optional().allow(null),
+
   shipping_address: Joi.object({
     name: Joi.string().max(255).optional(),
+    full_name: Joi.string().max(255).optional(),
     phone: Joi.string().max(20).optional(),
     address_line1: Joi.string().max(255).optional(),
     address_line2: Joi.string().max(255).optional(),
+    formatted_address: Joi.string().max(500).optional(),
     city: Joi.string().max(100).optional(),
     state: Joi.string().max(100).optional(),
     postal_code: Joi.string().max(20).optional(),
     country: Joi.string().max(100).optional(),
+    latitude: Joi.number().min(-90).max(90).optional(),
+    longitude: Joi.number().min(-180).max(180).optional(),
+    place_id: Joi.string().max(255).optional(),
+    vicinity: Joi.string().max(255).optional(),
+    location_source: Joi.string().valid('manual', 'autocomplete', 'current_location').optional(),
   })
     .optional()
     .allow(null),

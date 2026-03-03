@@ -21,13 +21,14 @@ export const createOrder = async (
       throw new BadRequestError('Authentication required to create an order');
     }
 
-    const { items, coupon_code, payment_method, shipping_address, billing_address, customer_notes } = req.body;
+    const { items, coupon_code, payment_method, delivery_address_id, shipping_address, billing_address, customer_notes } = req.body;
 
     const order = await OrderService.createOrder({
       user_id: req.user.id,
       items,
       coupon_code,
       payment_method,
+      delivery_address_id,
       shipping_address,
       billing_address,
       customer_notes,
@@ -77,13 +78,14 @@ export const createOrderFromCart = async (
       unit_price: item.unit_price,
     }));
 
-    const { coupon_code, payment_method, shipping_address, billing_address, customer_notes } = req.body;
+    const { coupon_code, payment_method, delivery_address_id, shipping_address, billing_address, customer_notes } = req.body;
 
     const order = await OrderService.createOrder({
       user_id: req.user.id,
       items,
       coupon_code,
       payment_method,
+      delivery_address_id,
       shipping_address,
       billing_address,
       customer_notes,

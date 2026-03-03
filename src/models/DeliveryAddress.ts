@@ -99,6 +99,44 @@ export default class DeliveryAddress extends Model {
   })
   longitude?: number;
 
+  @Column({
+    type: DataType.STRING(500),
+    allowNull: true,
+  })
+  formatted_address?: string;
+
+  @Column({
+    type: DataType.STRING(255),
+    allowNull: true,
+  })
+  place_id?: string;
+
+  @Column({
+    type: DataType.STRING(255),
+    allowNull: true,
+  })
+  vicinity?: string;
+
+  @Column({
+    type: DataType.STRING(32),
+    allowNull: true,
+    defaultValue: 'manual',
+  })
+  location_source?: string;
+
+  @Column({
+    type: DataType.DECIMAL(10, 3),
+    allowNull: true,
+    comment: 'Cached distance in KM from official store',
+  })
+  distance_km_from_store?: number;
+
+  @Column({
+    type: DataType.DATE,
+    allowNull: true,
+  })
+  distance_calculated_at?: Date;
+
   @BelongsTo(() => User)
   user!: User;
 

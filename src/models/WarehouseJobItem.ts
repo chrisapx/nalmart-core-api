@@ -50,6 +50,9 @@ export default class WarehouseJobItem extends Model {
   @Column({ type: DataType.INTEGER, defaultValue: 0 })
   quantity_packed!: number;
 
+  @Column({ type: DataType.INTEGER, defaultValue: 0 })
+  quantity_shipped!: number;
+
   @Column({
     type: DataType.ENUM('pending', 'picked', 'missing', 'damaged'),
     defaultValue: 'pending',
@@ -68,17 +71,32 @@ export default class WarehouseJobItem extends Model {
   @Column({ type: DataType.TEXT, allowNull: true })
   pack_notes!: string | null;
 
+  @Column({
+    type: DataType.ENUM('pending', 'checked', 'missing', 'flagged'),
+    defaultValue: 'pending',
+  })
+  shipping_status!: 'pending' | 'checked' | 'missing' | 'flagged';
+
+  @Column({ type: DataType.TEXT, allowNull: true })
+  shipping_notes!: string | null;
+
   @Column({ type: DataType.BIGINT, allowNull: true })
   picked_by!: number | null;
 
   @Column({ type: DataType.BIGINT, allowNull: true })
   packed_by!: number | null;
 
+  @Column({ type: DataType.BIGINT, allowNull: true })
+  shipped_by!: number | null;
+
   @Column({ type: DataType.DATE, allowNull: true })
   picked_at!: Date | null;
 
   @Column({ type: DataType.DATE, allowNull: true })
   packed_at!: Date | null;
+
+  @Column({ type: DataType.DATE, allowNull: true })
+  shipped_at!: Date | null;
 
   @CreatedAt
   created_at!: Date;

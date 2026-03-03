@@ -79,6 +79,35 @@ export const permissions = [
   { name: 'Export Orders', slug: 'EXPORT_ORDERS', category: 'Orders', description: 'Export order data' },
   { name: 'View Order Analytics', slug: 'VIEW_ORDER_ANALYTICS', category: 'Orders', description: 'View order analytics' },
 
+  // Warehouse Operations (12)
+  { name: 'View Warehouse Jobs', slug: 'VIEW_WAREHOUSE_JOB', category: 'Warehouse', description: 'View warehouse job queue and details' },
+  { name: 'Manage Warehouse Jobs', slug: 'MANAGE_WAREHOUSE_JOB', category: 'Warehouse', description: 'Full warehouse workflow management' },
+  { name: 'Select For Processing', slug: 'SELECT_ORDER_FOR_PROCESSING', category: 'Warehouse', description: 'Select confirmed orders into warehouse processing queue' },
+  { name: 'Pick Warehouse Items', slug: 'PICK_WAREHOUSE_ITEM', category: 'Warehouse', description: 'Pick and mark order items in warehouse' },
+  { name: 'Complete Picking Stage', slug: 'COMPLETE_PICKING_STAGE', category: 'Warehouse', description: 'Complete picking and move to shipping checks' },
+  { name: 'Shipping Check Items', slug: 'SHIP_CHECK_WAREHOUSE_ITEM', category: 'Warehouse', description: 'Verify item completeness during shipping stage' },
+  { name: 'Complete Shipping Stage', slug: 'COMPLETE_SHIPPING_STAGE', category: 'Warehouse', description: 'Complete shipping checks and progress to packing' },
+  { name: 'Pack Warehouse Items', slug: 'PACK_WAREHOUSE_ITEM', category: 'Warehouse', description: 'Pack and seal order items' },
+  { name: 'Complete Packing Stage', slug: 'COMPLETE_PACKING_STAGE', category: 'Warehouse', description: 'Complete packing and open order for delivery' },
+  { name: 'Resolve Warehouse QA', slug: 'RESOLVE_WAREHOUSE_QA', category: 'Warehouse', description: 'Resolve QA flags and return order to packing' },
+  { name: 'Print Delivery Label', slug: 'PRINT_DELIVERY_LABEL', category: 'Warehouse', description: 'Print or mark delivery label for sealed box' },
+  { name: 'Cancel Warehouse Job', slug: 'CANCEL_WAREHOUSE_JOB', category: 'Warehouse', description: 'Cancel warehouse job processing' },
+
+  // Delivery Handoff (6)
+  { name: 'Assign Delivery Agent', slug: 'ASSIGN_DELIVERY_AGENT', category: 'Delivery', description: 'Assign delivery agent to open orders' },
+  { name: 'Dispatch For Delivery', slug: 'DISPATCH_FOR_DELIVERY', category: 'Delivery', description: 'Move order from open-for-delivery to out-for-delivery' },
+  { name: 'Generate Delivery Code', slug: 'GENERATE_DELIVERY_CODE', category: 'Delivery', description: 'Generate customer confirmation code for delivery handoff' },
+  { name: 'Confirm Delivery Code', slug: 'CONFIRM_DELIVERY_CODE', category: 'Delivery', description: 'Confirm customer code and complete delivery' },
+  { name: 'Confirm COD Cash', slug: 'CONFIRM_COD_CASH', category: 'Delivery', description: 'Confirm cash collection for COD orders' },
+  { name: 'View Delivery Queue', slug: 'VIEW_DELIVERY_QUEUE', category: 'Delivery', description: 'View open and out-for-delivery job queue' },
+
+  // Store / Delivery Pricing Configuration (5)
+  { name: 'View Stores', slug: 'VIEW_STORE', category: 'Store', description: 'View store locations and delivery fee settings' },
+  { name: 'Create Store', slug: 'CREATE_STORE', category: 'Store', description: 'Create store locations for delivery pricing' },
+  { name: 'Update Store', slug: 'UPDATE_STORE', category: 'Store', description: 'Update store locations and pricing configuration' },
+  { name: 'Delete Store', slug: 'DELETE_STORE', category: 'Store', description: 'Delete store locations' },
+  { name: 'Manage Stores', slug: 'MANAGE_STORE', category: 'Store', description: 'Full store configuration access' },
+
   // Payment Management (8)
   { name: 'View Payments', slug: 'VIEW_PAYMENT', category: 'Payments', description: 'View payment records' },
   { name: 'Process Payment', slug: 'PROCESS_PAYMENT', category: 'Payments', description: 'Process payments' },

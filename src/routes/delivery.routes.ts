@@ -2,6 +2,7 @@ import { Router } from 'express';
 import * as DeliveryController from '../controllers/delivery.controller';
 import { validateBody } from '../middleware/validation';
 import { authenticate } from '../middleware/auth';
+import { authorize } from '../middleware/rbac';
 import {
   calculateShippingFeeSchema,
   createDeliverySchema,
@@ -11,6 +12,10 @@ import {
   updateDeliveryMethodSchema,
   createDeliveryAddressSchema,
   updateDeliveryAddressSchema,
+  quoteDeliveryFeeSchema,
+  resolveAddressLocationSchema,
+  createStoreSchema,
+  updateStoreSchema,
 } from '../validators/delivery.validator';
 
 const router = Router();
@@ -32,6 +37,43 @@ router.post(
 router.get('/methods/available', DeliveryController.getAvailableMethods);
 
 /**
+ * GET /api/v1/deliveries/stores
+ */
+router.get('/stores', authenticate, authorize(['VIEW_STORE', 'MANAGE_STORE']), DeliveryController.getStores);
+
+/**
+ * POST /api/v1/deliveries/stores
+ */
+router.post(
+  '/stores',
+  authenticate,
+  authorize(['CREATE_STORE', 'MANAGE_STORE']),
+  validateBody(createStoreSchema),
+  DeliveryController.createStore,
+);
+
+/**
+ * PUT /api/v1/deliveries/stores/:id
+ */
+router.put(
+  '/stores/:id',
+  authenticate,
+  authorize(['UPDATE_STORE', 'MANAGE_STORE']),
+  validateBody(updateStoreSchema),
+  DeliveryController.updateStore,
+);
+
+/**
+ * DELETE /api/v1/deliveries/stores/:id
+ */
+router.delete(
+  '/stores/:id',
+  authenticate,
+  authorize(['DELETE_STORE', 'MANAGE_STORE']),
+  DeliveryController.deleteStore,
+);
+
+/**
  * GET /api/v1/deliveries/methods/categorized
  * Returns active methods grouped by category (PickUp / Door / PickUpXpress / DoorXpress).
  */
@@ -44,10 +86,36 @@ router.get('/methods/categorized', DeliveryController.getCategorizedMethods);
 router.post('/calculate-fee-by-category', DeliveryController.calculateFeeByCategory);
 
 /**
+ * POST /api/v1/deliveries/quote
+ */
+router.post(
+  '/quote',
+  authenticate,
+  validateBody(quoteDeliveryFeeSchema),
+  DeliveryController.quoteDeliveryFee,
+);
+
+/**
+ * GET /api/v1/deliveries/location/autocomplete
+ */
+router.get('/location/autocomplete', DeliveryController.autocompleteAddress);
+
+/**
+ * POST /api/v1/deliveries/location/resolve
+ */
+router.post(
+  '/location/resolve',
+  validateBody(resolveAddressLocationSchema),
+  DeliveryController.resolveAddressLocation,
+);
+
+/**
  * POST /api/v1/deliveries/methods
  */
 router.post(
   '/methods',
+  authenticate,
+  authorize(['CONFIGURE_SHIPPING', 'MANAGE_SYSTEM']),
   validateBody(createDeliveryMethodSchema),
   DeliveryController.createDeliveryMethod
 );
@@ -57,6 +125,8 @@ router.post(
  */
 router.put(
   '/methods/:id',
+  authenticate,
+  authorize(['CONFIGURE_SHIPPING', 'MANAGE_SYSTEM']),
   validateBody(updateDeliveryMethodSchema),
   DeliveryController.updateDeliveryMethod
 );
@@ -96,10 +166,12 @@ router.put(
  */
 router.delete('/addresses/:id', authenticate, DeliveryController.deleteDeliveryAddress);
 
-/**
- * GET /api/v1/deliveries/stats
- */
-router.get('/stats', DeliveryController.getDeliveryStats);
+router.get(
+  '/stats',
+  authenticate,
+  authorize(['VIEW_ORDER_ANALYTICS', 'MANAGE_SYSTEM']),
+  DeliveryController.getDeliveryStats,
+);
 
 // ─── Collection routes ───────────────────────────────────────────────────────
 

@@ -157,6 +157,12 @@ export const createDeliveryAddressSchema = Joi.object({
       'string.pattern.base': 'Phone number is invalid',
     }),
   is_default: Joi.boolean().optional(),
+  latitude: Joi.number().min(-90).max(90).optional(),
+  longitude: Joi.number().min(-180).max(180).optional(),
+  place_id: Joi.string().max(255).optional().allow('', null),
+  formatted_address: Joi.string().max(500).optional().allow('', null),
+  vicinity: Joi.string().max(255).optional().allow('', null),
+  location_source: Joi.string().valid('manual', 'autocomplete', 'current_location').optional(),
 });
 
 /**
@@ -174,6 +180,76 @@ export const updateDeliveryAddressSchema = Joi.object({
     .regex(/^[+\d\s\-()]{7,20}$/)
     .optional(),
   is_default: Joi.boolean().optional(),
+  latitude: Joi.number().min(-90).max(90).optional(),
+  longitude: Joi.number().min(-180).max(180).optional(),
+  place_id: Joi.string().max(255).optional().allow('', null),
+  formatted_address: Joi.string().max(500).optional().allow('', null),
+  vicinity: Joi.string().max(255).optional().allow('', null),
+  location_source: Joi.string().valid('manual', 'autocomplete', 'current_location').optional(),
+}).min(1);
+
+export const quoteDeliveryFeeSchema = Joi.object({
+  items: Joi.array()
+    .items(
+      Joi.object({
+        product_id: Joi.number().integer().required(),
+        quantity: Joi.number().integer().min(1).required(),
+      }),
+    )
+    .min(1)
+    .required(),
+  delivery_address_id: Joi.number().integer().optional(),
+  shipping_address: Joi.object({
+    latitude: Joi.number().min(-90).max(90).optional(),
+    longitude: Joi.number().min(-180).max(180).optional(),
+    country: Joi.string().max(100).optional(),
+    city: Joi.string().max(100).optional(),
+    address_line1: Joi.string().max(255).optional(),
+    address_line2: Joi.string().max(255).optional(),
+  }).optional(),
+});
+
+export const resolveAddressLocationSchema = Joi.object({
+  place_id: Joi.string().max(255).optional(),
+  latitude: Joi.number().min(-90).max(90).optional(),
+  longitude: Joi.number().min(-180).max(180).optional(),
+  address: Joi.string().max(500).optional(),
+  session_token: Joi.string().max(255).optional(),
+  source: Joi.string().valid('manual', 'autocomplete', 'current_location').optional(),
+}).or('place_id', 'address', 'latitude');
+
+export const createStoreSchema = Joi.object({
+  name: Joi.string().max(150).required(),
+  logo_url: Joi.string().max(500).optional().allow('', null),
+  street: Joi.string().max(255).optional().allow('', null),
+  city: Joi.string().max(120).optional().allow('', null),
+  state: Joi.string().max(120).optional().allow('', null),
+  postal_code: Joi.string().max(30).optional().allow('', null),
+  country: Joi.string().max(120).optional().default('Uganda'),
+  latitude: Joi.number().min(-90).max(90).optional(),
+  longitude: Joi.number().min(-180).max(180).optional(),
+  per_km_delivery_fees: Joi.number().min(0).optional(),
+  base_delivery_fee: Joi.number().min(0).optional(),
+  is_active: Joi.boolean().optional(),
+  is_official: Joi.boolean().optional(),
+  metadata: Joi.object().optional(),
+});
+
+export const updateStoreSchema = Joi.object({
+  name: Joi.string().max(150).optional(),
+  logo_url: Joi.string().max(500).optional().allow('', null),
+  street: Joi.string().max(255).optional().allow('', null),
+  city: Joi.string().max(120).optional().allow('', null),
+  state: Joi.string().max(120).optional().allow('', null),
+  postal_code: Joi.string().max(30).optional().allow('', null),
+  country: Joi.string().max(120).optional(),
+  latitude: Joi.number().min(-90).max(90).optional(),
+  longitude: Joi.number().min(-180).max(180).optional(),
+  per_km_delivery_fees: Joi.number().min(0).optional(),
+  base_delivery_fee: Joi.number().min(0).optional(),
+  is_active: Joi.boolean().optional(),
+  is_official: Joi.boolean().optional(),
+  metadata: Joi.object().optional(),
 }).min(1);
 
 export default {
@@ -185,4 +261,8 @@ export default {
   updateDeliveryMethodSchema,
   createDeliveryAddressSchema,
   updateDeliveryAddressSchema,
+  quoteDeliveryFeeSchema,
+  resolveAddressLocationSchema,
+  createStoreSchema,
+  updateStoreSchema,
 };

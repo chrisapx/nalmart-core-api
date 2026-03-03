@@ -24,8 +24,8 @@ interface CreateOrderInput {
   delivery_address_id?: number;
   coupon_code?: string;
   payment_method?: string;
-  shipping_address?: Record<string, string>;
-  billing_address?: Record<string, string>;
+  shipping_address?: Record<string, any>;
+  billing_address?: Record<string, any>;
   customer_notes?: string;
   ip_address?: string;
   user_agent?: string;
@@ -140,28 +140,40 @@ export class OrderService {
       // Calculate tax (using simple 10% for now, can be made configurable per currency)
       const taxAmount = Number((subtotal * 0.1).toFixed(2));
 
-      // Calculate shipping amount using delivery service
+      // Calculate shipping amount using delivery quote engine (store distance + campaigns)
       let shippingAmount = 0;
-      if (data.delivery_method_id) {
-        shippingAmount = await DeliveryService.calculateShippingFee(
-          data.delivery_method_id,
-          totalWeight,
-          subtotal
-        );
-      } else {
-        // Default to first available method if not specified
-        const availableMethods = await DeliveryService.getAvailableMethods();
-        if (availableMethods.length > 0) {
+      try {
+        const quote = await DeliveryService.quoteDeliveryFee({
+          user_id: data.user_id,
+          items: data.items.map((item) => ({
+            product_id: Number(item.product_id),
+            quantity: Number(item.quantity),
+          })),
+          delivery_address_id: data.delivery_address_id,
+          shipping_address: data.shipping_address,
+        });
+        shippingAmount = Number(quote?.shipping_fee || 0);
+      } catch (quoteError) {
+        logger.warn(`Delivery quote failed for order creation, falling back to method fee: ${(quoteError as any)?.message}`);
+
+        if (data.delivery_method_id) {
           shippingAmount = await DeliveryService.calculateShippingFee(
-            availableMethods[0].id,
+            data.delivery_method_id,
             totalWeight,
             subtotal
           );
         } else {
-          // No delivery methods in DB yet — fall back to free shipping
-          // rather than blocking order creation entirely.
-          logger.warn('No delivery methods found in DB — using 0 shipping fee as fallback');
-          shippingAmount = 0;
+          const availableMethods = await DeliveryService.getAvailableMethods();
+          if (availableMethods.length > 0) {
+            shippingAmount = await DeliveryService.calculateShippingFee(
+              availableMethods[0].id,
+              totalWeight,
+              subtotal
+            );
+          } else {
+            logger.warn('No delivery methods found in DB — using 0 shipping fee as fallback');
+            shippingAmount = 0;
+          }
         }
       }
 

@@ -41,18 +41,67 @@ export const advanceStage = async (req: AuthRequest, res: Response, next: NextFu
   } catch (e) { next(e); }
 };
 
+export const selectForProcessing = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) throw new BadRequestError('Authentication required');
+    const job = await WarehouseService.selectForProcessing(parseInt(String(req.params.id), 10), userId);
+    successResponse(res, job, 'Order selected for processing');
+  } catch (e) { next(e); }
+};
+
 export const updateItemStatus = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const userId = req.user?.id;
     if (!userId) throw new BadRequestError('Authentication required');
     const { action, status, quantity, notes } = req.body;
     if (!action || !status) throw new BadRequestError('action and status are required');
+    if (!['pick', 'ship', 'pack'].includes(action)) {
+      throw new BadRequestError('action must be one of: pick, ship, pack');
+    }
     const item = await WarehouseService.updateItemStatus(
       parseInt(String(req.params.id), 10),
       parseInt(String(req.params.itemId), 10),
       { action, status, quantity, notes, userId }
     );
     successResponse(res, item, 'Item status updated');
+  } catch (e) { next(e); }
+};
+
+export const completePicking = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) throw new BadRequestError('Authentication required');
+    const job = await WarehouseService.completePicking(parseInt(String(req.params.id), 10), userId);
+    successResponse(res, job, 'Picking completed, moved to shipping');
+  } catch (e) { next(e); }
+};
+
+export const completeShipping = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) throw new BadRequestError('Authentication required');
+    const job = await WarehouseService.completeShipping(parseInt(String(req.params.id), 10), userId);
+    successResponse(res, job, 'Shipping stage completed');
+  } catch (e) { next(e); }
+};
+
+export const completePacking = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) throw new BadRequestError('Authentication required');
+    const job = await WarehouseService.completePacking(parseInt(String(req.params.id), 10), userId);
+    successResponse(res, job, 'Packing stage completed');
+  } catch (e) { next(e); }
+};
+
+export const resolveQa = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) throw new BadRequestError('Authentication required');
+    const { notes } = req.body;
+    const job = await WarehouseService.resolveQa(parseInt(String(req.params.id), 10), userId, notes);
+    successResponse(res, job, 'QA resolved, order moved back to packing');
   } catch (e) { next(e); }
 };
 
@@ -81,10 +130,24 @@ export const confirmDelivery = async (req: AuthRequest, res: Response, next: Nex
   } catch (e) { next(e); }
 };
 
+export const dispatchForDelivery = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const job = await WarehouseService.dispatchForDelivery(parseInt(String(req.params.id), 10));
+    successResponse(res, job, 'Order dispatched for delivery');
+  } catch (e) { next(e); }
+};
+
 export const printLabel = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const job = await WarehouseService.printLabel(parseInt(String(req.params.id), 10));
     successResponse(res, { box_label_printed_at: job.box_label_printed_at }, 'Label marked as printed');
+  } catch (e) { next(e); }
+};
+
+export const getLabelPayload = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const payload = await WarehouseService.getLabelPayload(parseInt(String(req.params.id), 10));
+    successResponse(res, payload, 'Label payload generated');
   } catch (e) { next(e); }
 };
 

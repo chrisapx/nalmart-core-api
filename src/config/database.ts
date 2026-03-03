@@ -33,6 +33,7 @@ import CartItem from '../models/CartItem';
 import Payment from '../models/Payment';
 import WarehouseJob from '../models/WarehouseJob';
 import WarehouseJobItem from '../models/WarehouseJobItem';
+import Store from '../models/Store';
 
 const sequelize = new Sequelize({
   host: env.DB_HOST,
@@ -85,6 +86,7 @@ const sequelize = new Sequelize({
     Payment,
     WarehouseJob,
     WarehouseJobItem,
+    Store,
   ],
 });
 

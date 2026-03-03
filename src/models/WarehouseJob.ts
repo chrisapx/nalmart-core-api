@@ -15,9 +15,12 @@ import WarehouseJobItem from './WarehouseJobItem';
 
 export type WarehouseJobStage =
   | 'pending_pick'
+  | 'processing'
   | 'picking'
+  | 'shipping'
   | 'packing'
-  | 'ready_for_dispatch'
+  | 'qa'
+  | 'open_for_delivery'
   | 'out_for_delivery'
   | 'delivered'
   | 'cancelled';
@@ -46,9 +49,12 @@ export default class WarehouseJob extends Model {
   @Column({
     type: DataType.ENUM(
       'pending_pick',
+      'processing',
       'picking',
+      'shipping',
       'packing',
-      'ready_for_dispatch',
+      'qa',
+      'open_for_delivery',
       'out_for_delivery',
       'delivered',
       'cancelled'
@@ -64,7 +70,19 @@ export default class WarehouseJob extends Model {
   assigned_packer_id!: number | null;
 
   @Column({ type: DataType.BIGINT, allowNull: true })
+  assigned_shipper_id!: number | null;
+
+  @Column({ type: DataType.BIGINT, allowNull: true })
+  assigned_qa_id!: number | null;
+
+  @Column({ type: DataType.BIGINT, allowNull: true })
   assigned_agent_id!: number | null;
+
+  @Column({ type: DataType.BIGINT, allowNull: true })
+  selected_for_processing_by!: number | null;
+
+  @Column({ type: DataType.DATE, allowNull: true })
+  selected_for_processing_at!: Date | null;
 
   @Column({ type: DataType.DATE, allowNull: true })
   picking_started_at!: Date | null;
@@ -77,6 +95,27 @@ export default class WarehouseJob extends Model {
 
   @Column({ type: DataType.DATE, allowNull: true })
   packing_completed_at!: Date | null;
+
+  @Column({ type: DataType.DATE, allowNull: true })
+  shipping_started_at!: Date | null;
+
+  @Column({ type: DataType.DATE, allowNull: true })
+  shipping_completed_at!: Date | null;
+
+  @Column({ type: DataType.DATE, allowNull: true })
+  qa_started_at!: Date | null;
+
+  @Column({ type: DataType.DATE, allowNull: true })
+  qa_completed_at!: Date | null;
+
+  @Column({ type: DataType.DATE, allowNull: true })
+  open_for_delivery_at!: Date | null;
+
+  @Column({ type: DataType.DATE, allowNull: true })
+  out_for_delivery_at!: Date | null;
+
+  @Column({ type: DataType.DATE, allowNull: true })
+  sealed_at!: Date | null;
 
   @Column({ type: DataType.DATE, allowNull: true })
   dispatch_at!: Date | null;

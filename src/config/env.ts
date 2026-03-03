@@ -50,6 +50,10 @@ interface EnvConfig {
   GOOGLE_CLIENT_SECRET?: string;
   GOOGLE_CALLBACK_URL?: string;
 
+  // Google Maps
+  GOOGLE_MAPS_API_KEY?: string;
+  GOOGLE_MAPS_COUNTRY_CODE?: string;
+
   // Frontend
   FRONTEND_URL?: string;
 
@@ -113,6 +117,10 @@ const env: EnvConfig = {
   GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
   GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
   GOOGLE_CALLBACK_URL: process.env.GOOGLE_CALLBACK_URL,
+
+  // Google Maps
+  GOOGLE_MAPS_API_KEY: process.env.GOOGLE_MAPS_API_KEY,
+  GOOGLE_MAPS_COUNTRY_CODE: process.env.GOOGLE_MAPS_COUNTRY_CODE || 'ug',
 
   // Frontend
   FRONTEND_URL: process.env.FRONTEND_URL,
