@@ -137,8 +137,8 @@ export class OrderService {
         });
       }
 
-      // Calculate tax (using simple 10% for now, can be made configurable per currency)
-      const taxAmount = Number((subtotal * 0.1).toFixed(2));
+      // Tax is zero — not charged
+      const taxAmount = 0;
 
       // Calculate shipping amount using delivery quote engine (store distance + campaigns)
       let shippingAmount = 0;
@@ -738,7 +738,7 @@ export class OrderService {
         items,
         subtotal:      Number(order.subtotal),
         shipping:      Number(order.shipping_amount),
-        tax:           Number(order.tax_amount),
+        tax:           0,
         total:         Number(order.total_amount),
         currency:      'UGX',
         paymentMethod: order.payment_method || 'cash_on_delivery',
