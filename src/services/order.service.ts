@@ -9,6 +9,7 @@ import { InventoryService } from './inventory.service';
 import DeliveryService from './delivery.service';
 import { EmailService } from './email.service';
 import { WarehouseService } from './warehouse.service';
+import PushService from './push.service';
 import logger from '../utils/logger';
 import { NotFoundError, BadRequestError, ValidationError } from '../utils/errors';
 import { Op } from 'sequelize';
@@ -285,6 +286,15 @@ export class OrderService {
       // Fire order-received confirmation email (non-blocking)
       OrderService.sendStatusEmail(order.id, 'received').catch(() => {});
 
+      // Push: alert all admins about the new order
+      PushService.onNewOrder({
+        orderId:      order.id,
+        orderNumber:  order.order_number,
+        customerName: `User #${order.user_id}`,
+        total:        Number(order.total_amount),
+        currency:     'UGX',
+      }).catch(() => {});
+
       return order;
     } catch (error) {
       logger.error('Error creating order:', error);
@@ -525,6 +535,15 @@ export class OrderService {
         if (emailStatus) {
           OrderService.sendStatusEmail(orderId, emailStatus, order.tracking_number || undefined).catch(() => {});
         }
+        // Push notification for every meaningful status transition
+        PushService.onOrderStatusChanged({
+          userId:      order.user_id,
+          orderId:     order.id,
+          orderNumber: order.order_number,
+          status:      order.status,
+          total:       Number(order.total_amount),
+          currency:    'UGX',
+        }).catch(() => {});
       }
 
       logger.info(`✅ Order updated: ${order.order_number}`);
@@ -594,6 +613,10 @@ export class OrderService {
 
       // Send shipping email (non-blocking)
       OrderService.sendStatusEmail(orderId, 'shipped', trackingNumber).catch(() => {});
+      PushService.onOrderStatusChanged({
+        userId: order.user_id, orderId: order.id, orderNumber: order.order_number,
+        status: 'shipped', total: Number(order.total_amount), currency: 'UGX',
+      }).catch(() => {});
 
       return order;
     } catch (error) {
@@ -619,6 +642,10 @@ export class OrderService {
 
       // Send delivered + review-request email (non-blocking)
       OrderService.sendStatusEmail(orderId, 'delivered').catch(() => {});
+      PushService.onOrderStatusChanged({
+        userId: order.user_id, orderId: order.id, orderNumber: order.order_number,
+        status: 'delivered', total: Number(order.total_amount), currency: 'UGX',
+      }).catch(() => {});
 
       return order;
     } catch (error) {
@@ -655,6 +682,10 @@ export class OrderService {
 
       // Fire order-confirmed email (non-blocking)
       OrderService.sendStatusEmail(order.id, 'confirmed').catch(() => {});
+      PushService.onOrderStatusChanged({
+        userId: order.user_id, orderId: order.id, orderNumber: order.order_number,
+        status: 'confirmed', total: Number(order.total_amount), currency: 'UGX',
+      }).catch(() => {});
 
       return order;
     } catch (error) {

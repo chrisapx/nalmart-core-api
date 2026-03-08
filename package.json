@@ -70,6 +70,7 @@
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.9.3",
     "uuid": "^13.0.0",
+    "web-push": "^3.6.7",
     "winston": "^3.19.0"
   },
   "devDependencies": {
@@ -81,6 +82,7 @@
     "@types/multer": "^2.0.0",
     "@types/node-cron": "^3.0.11",
     "@types/supertest": "^6.0.3",
+    "@types/web-push": "^3.6.4",
     "@typescript-eslint/eslint-plugin": "^8.55.0",
     "@typescript-eslint/parser": "^8.55.0",
     "eslint": "^9.39.2",
