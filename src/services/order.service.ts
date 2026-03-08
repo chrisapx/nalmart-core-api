@@ -257,12 +257,27 @@ export class OrderService {
 
       // Create delivery if address provided
       if (data.delivery_address_id) {
-        await DeliveryService.createDelivery({
-          order_id: order.id,
-          delivery_method_id: data.delivery_method_id || 1, // Use default method
-          delivery_address_id: data.delivery_address_id,
-          total_weight: totalWeight,
-        });
+        try {
+          // Resolve delivery method: use provided id, or fall back to the first active method in DB
+          let deliveryMethodId = data.delivery_method_id;
+          if (!deliveryMethodId) {
+            const activeMethods = await DeliveryService.getAvailableMethods();
+            deliveryMethodId = activeMethods[0]?.id;
+          }
+          if (!deliveryMethodId) {
+            logger.warn(`No active delivery method found — skipping delivery record for order ${order.id}`);
+          } else {
+            await DeliveryService.createDelivery({
+              order_id: order.id,
+              delivery_method_id: deliveryMethodId,
+              delivery_address_id: data.delivery_address_id,
+              total_weight: totalWeight,
+            });
+          }
+        } catch (deliveryErr) {
+          // Delivery record creation failure must not roll back the order itself
+          logger.warn(`Delivery record creation failed for order ${order.id}: ${(deliveryErr as any)?.message}`);
+        }
       }
 
       logger.info(`✅ Order created: ${orderNumber}`);
