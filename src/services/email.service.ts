@@ -260,6 +260,56 @@ export class EmailService {
       buildPlainText('Your order is confirmed. Have your payment ready.', d));
   }
 
+  static async sendOrderProcessing(d: OrderEmailData): Promise<void> {
+    const { momoNumber, supportEmail, frontendUrl, storeName } = cfg();
+    const currency = d.currency || 'UGX';
+    const orderUrl = `${frontendUrl}/orders?order=${encodeURIComponent(d.orderNumber)}`;
+    const html = render(loadTemplate('order-confirmed.html'), {
+      HERO_TITLE:         `Your order is being processed, ${d.firstName}.`,
+      HERO_SUBTITLE:      'Our team is picking and preparing your items. We will notify you once everything is packed and ready.',
+      ORDER_NUMBER:       d.orderNumber,
+      ORDER_DATE:         fmtDate(d.orderDate),
+      STATUS_LABEL:       'Processing',
+      ITEMS_HTML:         buildItemsHtml(d.items, currency),
+      PRICE_SUMMARY_HTML: buildPriceSummaryHtml(d.subtotal, d.shipping, d.tax || 0, d.total, currency),
+      COD_HTML:           buildCodHtml(d.total, d.orderNumber, currency, momoNumber),
+      DELIVERY_HTML:      buildDeliveryHtml(d.deliveryAddress, d.deliveryMethod),
+      CTA_URL:            orderUrl,
+      CTA_LABEL:          'View Order',
+      SUPPORT_EMAIL:      supportEmail,
+      FRONTEND_URL:       frontendUrl,
+      STORE_NAME:         storeName,
+      YEAR:               String(new Date().getFullYear()),
+    });
+    await send(d.to, `Order #${d.orderNumber} is being processed`, html,
+      buildPlainText('Your order is being processed.', d));
+  }
+
+  static async sendOrderPacked(d: OrderEmailData): Promise<void> {
+    const { momoNumber, supportEmail, frontendUrl, storeName } = cfg();
+    const currency = d.currency || 'UGX';
+    const orderUrl = `${frontendUrl}/orders?order=${encodeURIComponent(d.orderNumber)}`;
+    const html = render(loadTemplate('order-confirmed.html'), {
+      HERO_TITLE:         `Order packed and ready to ship, ${d.firstName}.`,
+      HERO_SUBTITLE:      'Your items have been packed and are awaiting handover to our rider. Please have your payment ready for delivery.',
+      ORDER_NUMBER:       d.orderNumber,
+      ORDER_DATE:         fmtDate(d.orderDate),
+      STATUS_LABEL:       'Packed',
+      ITEMS_HTML:         buildItemsHtml(d.items, currency),
+      PRICE_SUMMARY_HTML: buildPriceSummaryHtml(d.subtotal, d.shipping, d.tax || 0, d.total, currency),
+      COD_HTML:           buildCodHtml(d.total, d.orderNumber, currency, momoNumber),
+      DELIVERY_HTML:      buildDeliveryHtml(d.deliveryAddress, d.deliveryMethod),
+      CTA_URL:            orderUrl,
+      CTA_LABEL:          'View Order',
+      SUPPORT_EMAIL:      supportEmail,
+      FRONTEND_URL:       frontendUrl,
+      STORE_NAME:         storeName,
+      YEAR:               String(new Date().getFullYear()),
+    });
+    await send(d.to, `Order #${d.orderNumber} is packed and ready`, html,
+      buildPlainText('Your order has been packed and is ready to ship.', d));
+  }
+
   static async sendOrderShipped(d: OrderEmailData): Promise<void> {
     const { momoNumber, supportEmail, frontendUrl, storeName } = cfg();
     const currency = d.currency || 'UGX';

@@ -511,9 +511,20 @@ export class OrderService {
         );
       }
 
-      // Fire out-for-delivery email when status transitions into that stage
-      if (prevStatus !== order.status && order.status === 'out_for_delivery') {
-        OrderService.sendStatusEmail(orderId, 'out_for_delivery').catch(() => {});
+      // Fire a status-change email for every meaningful transition
+      if (prevStatus !== order.status) {
+        const statusEmailMap: Partial<Record<string, 'confirmed' | 'processing' | 'packed' | 'shipped' | 'out_for_delivery' | 'delivered'>> = {
+          confirmed:        'confirmed',
+          processing:       'processing',
+          packed:           'packed',
+          shipped:          'shipped',
+          out_for_delivery: 'out_for_delivery',
+          delivered:        'delivered',
+        };
+        const emailStatus = statusEmailMap[order.status];
+        if (emailStatus) {
+          OrderService.sendStatusEmail(orderId, emailStatus, order.tracking_number || undefined).catch(() => {});
+        }
       }
 
       logger.info(`✅ Order updated: ${order.order_number}`);
@@ -691,7 +702,7 @@ export class OrderService {
    */
   static async sendStatusEmail(
     orderId: number,
-    status: 'received' | 'confirmed' | 'shipped' | 'out_for_delivery' | 'delivered',
+    status: 'received' | 'confirmed' | 'processing' | 'packed' | 'shipped' | 'out_for_delivery' | 'delivered',
     trackingNumber?: string,
   ): Promise<void> {
     try {
@@ -746,11 +757,13 @@ export class OrderService {
         trackingNumber,
       };
 
-      if (status === 'received')             await EmailService.sendOrderReceived(base);
-      else if (status === 'confirmed')         await EmailService.sendOrderConfirmed(base);
-      else if (status === 'shipped')           await EmailService.sendOrderShipped(base);
-      else if (status === 'out_for_delivery')  await EmailService.sendOutForDelivery(base);
-      else if (status === 'delivered')         await EmailService.sendDelivered(base);
+      if      (status === 'received')          await EmailService.sendOrderReceived(base);
+      else if (status === 'confirmed')          await EmailService.sendOrderConfirmed(base);
+      else if (status === 'processing')         await EmailService.sendOrderProcessing(base);
+      else if (status === 'packed')             await EmailService.sendOrderPacked(base);
+      else if (status === 'shipped')            await EmailService.sendOrderShipped(base);
+      else if (status === 'out_for_delivery')   await EmailService.sendOutForDelivery(base);
+      else if (status === 'delivered')          await EmailService.sendDelivered(base);
     } catch (err) {
       logger.error(`sendStatusEmail error for order ${orderId}:`, err);
     }
