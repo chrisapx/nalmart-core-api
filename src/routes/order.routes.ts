@@ -24,14 +24,14 @@ const router = Router();
  * @desc    Create a new order
  * @access  Private (Authentication required)
  */
-router.post('/', /* authenticate, */ createOrder);
+router.post('/', authenticate, createOrder);
 
 /**
  * @route   POST /api/v1/orders/from-cart
  * @desc    Create order from user's cart
  * @access  Private (Authentication required)
  */
-router.post('/from-cart', /* authenticate, */ createOrderFromCart);
+router.post('/from-cart', authenticate, createOrderFromCart);
 
 /**
  * @route   GET /api/v1/orders
@@ -80,14 +80,14 @@ router.get('/:id', getOrderById);
  * @desc    Update order
  * @access  Private (Authentication required)
  */
-router.put('/:id', /* authenticate, */ updateOrder);
+router.put('/:id', authenticate, updateOrder);
 
 /**
  * @route   POST /api/v1/orders/:id/cancel
  * @desc    Cancel order
  * @access  Private (Authentication required)
  */
-router.post('/:id/cancel', /* authenticate, */ cancelOrder);
+router.post('/:id/cancel', authenticate, cancelOrder);
 
 /**
  * @route   POST /api/v1/orders/:id/ship
@@ -106,13 +106,13 @@ router.post(
  * @desc    Mark order as delivered
  * @access  Private (Authentication required - Admin)
  */
-router.post('/:id/deliver', /* authenticate, */ deliverOrder);
+router.post('/:id/deliver', authenticate, deliverOrder);
 
 /**
  * @route   POST /api/v1/orders/:id/payment
  * @desc    Record payment for order
  * @access  Private (Authentication required)
  */
-router.post('/:id/payment', /* authenticate, */ recordPayment);
+router.post('/:id/payment', authenticate, recordPayment);
 
 export default router;

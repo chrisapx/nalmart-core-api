@@ -22,6 +22,7 @@ export const ALLOWED_MIME_TYPES = {
     'image/png',
     'image/gif',
     'image/webp',
+    'image/avif',
     'image/svg+xml',
   ],
   DOCUMENT: [
@@ -53,7 +54,7 @@ const imageFileFilter = (
   } else {
     callback(
       new Error(
-        'Invalid file type. Only JPEG, PNG, GIF, WebP, and SVG images are allowed.'
+        'Invalid file type. Only JPEG, PNG, GIF, WebP, AVIF, and SVG images are allowed.'
       )
     );
   }

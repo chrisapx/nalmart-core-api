@@ -276,6 +276,7 @@ export class UploadService {
       'image/png',
       'image/gif',
       'image/webp',
+      'image/avif',
       'image/svg+xml',
     ];
     return allowedTypes.includes(mimeType);
