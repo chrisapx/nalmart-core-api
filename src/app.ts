@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import passport from 'passport';
+import morgan from 'morgan';
 import env from './config/env';
 import logger from './utils/logger';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
@@ -44,6 +45,16 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// HTTP request logging — every request goes through winston at 'http' level
+// Format: METHOD /path STATUS bytes - Xms  (from user IP)
+app.use(
+  morgan(':method :url :status :res[content-length] - :response-time ms  [:remote-addr]', {
+    stream: { write: (msg: string) => logger.http(msg.trimEnd()) },
+    // skip health-check spam
+    skip: (req) => req.url === '/health',
+  })
+);
 
 // Initialize Passport
 app.use(passport.initialize());
