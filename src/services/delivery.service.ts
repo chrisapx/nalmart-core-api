@@ -13,6 +13,43 @@ import OrderService from './order.service';
 import DeliveryPricingService from './delivery-pricing.service';
 
 export class DeliveryService {
+  private static normalizeStorePayload(data: {
+    name?: string;
+    logo_url?: string;
+    street?: string;
+    city?: string;
+    state?: string;
+    postal_code?: string;
+    country?: string;
+    latitude?: number;
+    longitude?: number;
+    per_km_delivery_fees?: number;
+    base_delivery_fee?: number;
+    normal_per_km_fee?: number;
+    normal_base_fee?: number;
+    instant_per_km_fee?: number;
+    instant_base_fee?: number;
+    instant_delivery_enabled?: boolean;
+    is_active?: boolean;
+    is_official?: boolean;
+    metadata?: Record<string, any>;
+  }) {
+    const normalized = { ...data } as Record<string, any>;
+
+    if (normalized.normal_per_km_fee === undefined && normalized.per_km_delivery_fees !== undefined) {
+      normalized.normal_per_km_fee = normalized.per_km_delivery_fees;
+    }
+
+    if (normalized.normal_base_fee === undefined && normalized.base_delivery_fee !== undefined) {
+      normalized.normal_base_fee = normalized.base_delivery_fee;
+    }
+
+    delete normalized.per_km_delivery_fees;
+    delete normalized.base_delivery_fee;
+
+    return normalized;
+  }
+
   static async getStores(filters?: {
     is_active?: boolean;
     is_official?: boolean;
@@ -49,6 +86,11 @@ export class DeliveryService {
     longitude?: number;
     per_km_delivery_fees?: number;
     base_delivery_fee?: number;
+    normal_per_km_fee?: number;
+    normal_base_fee?: number;
+    instant_per_km_fee?: number;
+    instant_base_fee?: number;
+    instant_delivery_enabled?: boolean;
     is_active?: boolean;
     is_official?: boolean;
     metadata?: Record<string, any>;
@@ -57,7 +99,7 @@ export class DeliveryService {
       await Store.update({ is_official: false }, { where: { is_official: true } });
     }
 
-    return Store.create(data as any);
+    return Store.create(this.normalizeStorePayload(data) as any);
   }
 
   static async updateStore(
@@ -74,6 +116,11 @@ export class DeliveryService {
       longitude: number;
       per_km_delivery_fees: number;
       base_delivery_fee: number;
+      normal_per_km_fee: number;
+      normal_base_fee: number;
+      instant_per_km_fee: number;
+      instant_base_fee: number;
+      instant_delivery_enabled: boolean;
       is_active: boolean;
       is_official: boolean;
       metadata: Record<string, any>;
@@ -88,7 +135,7 @@ export class DeliveryService {
       await Store.update({ is_official: false }, { where: { id: { [Op.ne]: storeId } } });
     }
 
-    await store.update(data as any);
+    await store.update(this.normalizeStorePayload(data) as any);
     return store;
   }
 
