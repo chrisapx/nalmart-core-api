@@ -207,6 +207,7 @@ export const quoteDeliveryFeeSchema = Joi.object({
     address_line1: Joi.string().max(255).optional(),
     address_line2: Joi.string().max(255).optional(),
   }).optional(),
+  delivery_mode: Joi.string().valid('normal', 'instant').optional(),
 });
 
 export const resolveAddressLocationSchema = Joi.object({
@@ -228,8 +229,15 @@ export const createStoreSchema = Joi.object({
   country: Joi.string().max(120).optional().default('Uganda'),
   latitude: Joi.number().min(-90).max(90).optional(),
   longitude: Joi.number().min(-180).max(180).optional(),
+  // Legacy keys (accepted for compatibility)
   per_km_delivery_fees: Joi.number().min(0).optional(),
   base_delivery_fee: Joi.number().min(0).optional(),
+  // New delivery mode keys
+  normal_per_km_fee: Joi.number().min(0).optional(),
+  normal_base_fee: Joi.number().min(0).optional(),
+  instant_per_km_fee: Joi.number().min(0).optional(),
+  instant_base_fee: Joi.number().min(0).optional(),
+  instant_delivery_enabled: Joi.boolean().optional(),
   is_active: Joi.boolean().optional(),
   is_official: Joi.boolean().optional(),
   metadata: Joi.object().optional(),
@@ -245,8 +253,15 @@ export const updateStoreSchema = Joi.object({
   country: Joi.string().max(120).optional(),
   latitude: Joi.number().min(-90).max(90).optional(),
   longitude: Joi.number().min(-180).max(180).optional(),
+  // Legacy keys (accepted for compatibility)
   per_km_delivery_fees: Joi.number().min(0).optional(),
   base_delivery_fee: Joi.number().min(0).optional(),
+  // New delivery mode keys
+  normal_per_km_fee: Joi.number().min(0).optional(),
+  normal_base_fee: Joi.number().min(0).optional(),
+  instant_per_km_fee: Joi.number().min(0).optional(),
+  instant_base_fee: Joi.number().min(0).optional(),
+  instant_delivery_enabled: Joi.boolean().optional(),
   is_active: Joi.boolean().optional(),
   is_official: Joi.boolean().optional(),
   metadata: Joi.object().optional(),
