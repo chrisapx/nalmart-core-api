@@ -25,11 +25,11 @@ module.exports = {
         defaultValue: 0,
         comment: 'Base delivery fee in UGX',
       },
-      per_kg_fee: {
+      per_km_fee: {
         type: Sequelize.DECIMAL(10, 2),
         allowNull: false,
         defaultValue: 0,
-        comment: 'Additional fee per kg in UGX',
+        comment: 'Additional fee per kilometer in UGX',
       },
       estimated_delivery_days: {
         type: Sequelize.INTEGER,
