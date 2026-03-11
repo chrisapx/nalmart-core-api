@@ -20,7 +20,7 @@ export class CartService {
         include: [
           {
             model: CartItem,
-            attributes: ['id', 'product_id', 'quantity', 'unit_price', 'total_price', 'variant_data', 'reservation_id'],
+            attributes: ['id', 'product_id', 'quantity', 'unit_price', 'total_price', 'variant_data', 'reservation_id', 'is_selected'],
             include: [
               {
                 model: Product,
@@ -321,5 +321,94 @@ export class CartService {
       { total_items: totalItems, total_price: totalPrice },
       { where: { id: cartId } }
     );
+  }
+
+  /**
+   * Toggle selection of a cart item
+   */
+  static async toggleItemSelection(userId: number, cartItemId: number): Promise<CartItem> {
+    try {
+      const cartItem = await CartItem.findByPk(cartItemId);
+
+      if (!cartItem) {
+        throw new NotFoundError('Cart item not found');
+      }
+
+      // Verify cart belongs to user
+      const cart = await Cart.findOne({
+        where: { id: cartItem.cart_id, user_id: userId },
+      });
+
+      if (!cart) {
+        throw new NotFoundError('Cart item does not belong to your cart');
+      }
+
+      // Toggle selection
+      cartItem.is_selected = !cartItem.is_selected;
+      await cartItem.save();
+
+      logger.info(`Toggled selection for item ${cartItemId} to ${cartItem.is_selected} for user ${userId}`);
+      return cartItem;
+    } catch (error) {
+      logger.error('Error toggling cart item selection:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Toggle all cart items selection
+   */
+  static async toggleAllItems(userId: number, selected: boolean): Promise<void> {
+    try {
+      const cart = await Cart.findOne({ where: { user_id: userId } });
+      if (!cart) return;
+
+      await CartItem.update(
+        { is_selected: selected },
+        { where: { cart_id: cart.id } }
+      );
+
+      logger.info(`Set all items to ${selected ? 'selected' : 'deselected'} for user ${userId}`);
+    } catch (error) {
+      logger.error('Error toggling all cart items:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Clear only selected cart items
+   */
+  static async clearSelectedItems(userId: number): Promise<void> {
+    try {
+      const cart = await Cart.findOne({ where: { user_id: userId } });
+      if (!cart) return;
+
+      // Get selected items to release their reservations
+      const selectedItems = await CartItem.findAll({
+        where: { cart_id: cart.id, is_selected: true },
+      });
+
+      // Release inventory reservations
+      for (const item of selectedItems) {
+        if (item.reservation_id) {
+          try {
+            await InventoryService.unreserveInventory(item.reservation_id, 'Selected items cleared from cart');
+          } catch (_) {}
+        }
+      }
+
+      // Delete selected items
+      await CartItem.destroy({
+        where: { cart_id: cart.id, is_selected: true },
+      });
+
+      // Update cart totals
+      await this.updateCartTotals(cart.id);
+
+      logger.info(`Cleared selected items from cart for user ${userId}`);
+    } catch (error) {
+      logger.error('Error clearing selected cart items:', error);
+      throw error;
+    }
   }
 }

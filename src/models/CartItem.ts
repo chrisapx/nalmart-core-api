@@ -67,6 +67,14 @@ export default class CartItem extends Model {
   })
   variant_data!: string | null;
 
+  @Column({
+    type: DataType.BOOLEAN,
+    allowNull: false,
+    defaultValue: true,
+    comment: 'Whether this item is selected for checkout',
+  })
+  is_selected!: boolean;
+
   @ForeignKey(() => ReservedInventory)
   @Column({
     type: DataType.BIGINT,

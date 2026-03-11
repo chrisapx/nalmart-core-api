@@ -5,6 +5,9 @@ import {
   updateCartItem,
   removeCartItem,
   clearCart,
+  toggleCartItemSelection,
+  toggleAllCartItems,
+  clearSelectedCartItems,
 } from '../controllers/cart.controller';
 import { authenticate } from '../middleware/auth';
 
@@ -44,5 +47,26 @@ router.delete('/item/:item_id', authenticate, removeCartItem);
  * @access  Private (Authentication required)
  */
 router.delete('/', authenticate, clearCart);
+
+/**
+ * @route   POST /api/v1/cart/item/:item_id/toggle-selection
+ * @desc    Toggle selection of a cart item for checkout
+ * @access  Private (Authentication required)
+ */
+router.post('/item/:item_id/toggle-selection', authenticate, toggleCartItemSelection);
+
+/**
+ * @route   POST /api/v1/cart/toggle-all
+ * @desc    Toggle all cart items selection (body: { selected: boolean })
+ * @access  Private (Authentication required)
+ */
+router.post('/toggle-all', authenticate, toggleAllCartItems);
+
+/**
+ * @route   DELETE /api/v1/cart/selected
+ * @desc    Clear only selected cart items
+ * @access  Private (Authentication required)
+ */
+router.delete('/selected', authenticate, clearSelectedCartItems);
 
 export default router;

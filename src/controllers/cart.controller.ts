@@ -128,3 +128,79 @@ export const clearCart = async (
     next(error);
   }
 };
+
+/**
+ * Toggle selection of a cart item
+ */
+export const toggleCartItemSelection = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (!req.user?.id) {
+      throw new BadRequestError('Authentication required');
+    }
+
+    const itemId = Array.isArray(req.params.item_id) ? req.params.item_id[0] : req.params.item_id;
+
+    if (!itemId) {
+      throw new BadRequestError('Item ID is required');
+    }
+
+    const item = await CartService.toggleItemSelection(req.user.id, parseInt(itemId));
+
+    successResponse(res, item, 'Cart item selection toggled successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Toggle all cart items selection
+ */
+export const toggleAllCartItems = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (!req.user?.id) {
+      throw new BadRequestError('Authentication required');
+    }
+
+    const { selected } = req.body;
+
+    if (selected === undefined) {
+      throw new BadRequestError('Selected state is required');
+    }
+
+    await CartService.toggleAllItems(req.user.id, selected);
+
+    successResponse(res, null, `All items ${selected ? 'selected' : 'deselected'} successfully`);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Clear only selected cart items
+ */
+export const clearSelectedCartItems = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (!req.user?.id) {
+      throw new BadRequestError('Authentication required');
+    }
+
+    await CartService.clearSelectedItems(req.user.id);
+
+    successResponse(res, null, 'Selected items cleared successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
