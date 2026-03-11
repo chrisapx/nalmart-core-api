@@ -17,6 +17,7 @@ interface QuoteInput {
   items: QuoteItemInput[];
   deliveryAddressId?: number;
   shippingAddress?: Record<string, any>;
+  delivery_mode?: 'normal' | 'instant'; // Defaults to 'normal' if not specified
 }
 
 interface NormalizedLocation {
@@ -38,11 +39,15 @@ interface FeeQuoteResult {
   used_cache: boolean;
   free_delivery: boolean;
   free_delivery_reason?: string;
+  delivery_mode: 'normal' | 'instant';
   store: {
     id: number;
     name: string;
-    per_km_delivery_fees: number;
-    base_delivery_fee: number;
+    normal_per_km_fee: number;
+    normal_base_fee: number;
+    instant_per_km_fee: number;
+    instant_base_fee: number;
+    instant_delivery_enabled: boolean;
   };
 }
 
@@ -441,8 +446,18 @@ export class DeliveryPricingService {
     const freeByCampaign = await this.allItemsHaveFreeDeliveryCampaign(products);
 
     const store = await this.getOfficialStore();
-    const perKmFee = Number((store as any).per_km_delivery_fees || 0);
-    const baseFee = Number((store as any).base_delivery_fee || 0);
+    
+    // Determine delivery mode (default to 'normal' if not specified)
+    const deliveryMode = input.delivery_mode || 'normal';
+    
+    // Get fees based on selected delivery mode
+    const perKmFee = deliveryMode === 'instant' 
+      ? Number((store as any).instant_per_km_fee || 3000)
+      : Number((store as any).normal_per_km_fee || 1500);
+    
+    const baseFee = deliveryMode === 'instant'
+      ? Number((store as any).instant_base_fee || 0)
+      : Number((store as any).normal_base_fee || 0);
 
     if (freeByCampaign) {
       return {
@@ -451,11 +466,15 @@ export class DeliveryPricingService {
         used_cache: false,
         free_delivery: true,
         free_delivery_reason: 'All basket items are covered by active free-delivery campaigns',
+        delivery_mode: deliveryMode,
         store: {
           id: store.id,
           name: store.name,
-          per_km_delivery_fees: perKmFee,
-          base_delivery_fee: baseFee,
+          normal_per_km_fee: Number((store as any).normal_per_km_fee || 1500),
+          normal_base_fee: Number((store as any).normal_base_fee || 0),
+          instant_per_km_fee: Number((store as any).instant_per_km_fee || 3000),
+          instant_base_fee: Number((store as any).instant_base_fee || 0),
+          instant_delivery_enabled: Boolean((store as any).instant_delivery_enabled ?? true),
         },
       };
     }
@@ -484,11 +503,15 @@ export class DeliveryPricingService {
         used_cache: false,
         free_delivery: false,
         free_delivery_reason: 'Distance unavailable; default delivery fee applied',
+        delivery_mode: deliveryMode,
         store: {
           id: store.id,
           name: store.name,
-          per_km_delivery_fees: perKmFee,
-          base_delivery_fee: baseFee,
+          normal_per_km_fee: Number((store as any).normal_per_km_fee || 1500),
+          normal_base_fee: Number((store as any).normal_base_fee || 0),
+          instant_per_km_fee: Number((store as any).instant_per_km_fee || 3000),
+          instant_base_fee: Number((store as any).instant_base_fee || 0),
+          instant_delivery_enabled: Boolean((store as any).instant_delivery_enabled ?? true),
         },
       };
     }
@@ -506,11 +529,15 @@ export class DeliveryPricingService {
         used_cache: false,
         free_delivery: false,
         free_delivery_reason: 'Distance API unavailable; default delivery fee applied',
+        delivery_mode: deliveryMode,
         store: {
           id: store.id,
           name: store.name,
-          per_km_delivery_fees: perKmFee,
-          base_delivery_fee: baseFee,
+          normal_per_km_fee: Number((store as any).normal_per_km_fee || 1500),
+          normal_base_fee: Number((store as any).normal_base_fee || 0),
+          instant_per_km_fee: Number((store as any).instant_per_km_fee || 3000),
+          instant_base_fee: Number((store as any).instant_base_fee || 0),
+          instant_delivery_enabled: Boolean((store as any).instant_delivery_enabled ?? true),
         },
       };
     }
@@ -529,11 +556,15 @@ export class DeliveryPricingService {
       distance_km: Number(distanceKm.toFixed(3)),
       used_cache: usedCache,
       free_delivery: false,
+      delivery_mode: deliveryMode,
       store: {
         id: store.id,
         name: store.name,
-        per_km_delivery_fees: perKmFee,
-        base_delivery_fee: baseFee,
+        normal_per_km_fee: Number((store as any).normal_per_km_fee || 1500),
+        normal_base_fee: Number((store as any).normal_base_fee || 0),
+        instant_per_km_fee: Number((store as any).instant_per_km_fee || 3000),
+        instant_base_fee: Number((store as any).instant_base_fee || 0),
+        instant_delivery_enabled: Boolean((store as any).instant_delivery_enabled ?? true),
       },
     };
   }

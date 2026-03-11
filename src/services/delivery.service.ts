@@ -744,12 +744,14 @@ export class DeliveryService {
     items: Array<{ product_id: number; quantity: number }>;
     delivery_address_id?: number;
     shipping_address?: Record<string, any>;
+    delivery_mode?: 'normal' | 'instant';
   }): Promise<any> {
     return DeliveryPricingService.quoteDeliveryFee({
       userId: data.user_id,
       items: data.items,
       deliveryAddressId: data.delivery_address_id,
       shippingAddress: data.shipping_address,
+      delivery_mode: data.delivery_mode,
     });
   }
 

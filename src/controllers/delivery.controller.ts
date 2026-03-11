@@ -492,6 +492,7 @@ export const quoteDeliveryFee = async (
       items: req.body.items,
       delivery_address_id: req.body.delivery_address_id,
       shipping_address: req.body.shipping_address,
+      delivery_mode: req.body.delivery_mode, // 'normal' or 'instant'
     });
 
     successResponse(res, result, 'Delivery quote calculated successfully');
