@@ -142,6 +142,13 @@ export default class Campaign extends Model {
   })
   priority!: number;
 
+  @Column({
+    type: DataType.ENUM('flash_sale', 'discount', 'free_shipping', 'bundle', 'seasonal', 'clearance'),
+    defaultValue: 'discount',
+    comment: 'Type of campaign',
+  })
+  campaign_type!: 'flash_sale' | 'discount' | 'free_shipping' | 'bundle' | 'seasonal' | 'clearance';
+
   @HasMany(() => Promotion)
   promotions!: Promotion[];
 

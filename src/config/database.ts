@@ -35,6 +35,8 @@ import WarehouseJob from '../models/WarehouseJob';
 import WarehouseJobItem from '../models/WarehouseJobItem';
 import Store from '../models/Store';
 import PushSubscription from '../models/PushSubscription';
+import StorePolicyFeature from '../models/StorePolicyFeature';
+import DeliveryCategory from '../models/DeliveryCategory';
 
 const sequelize = new Sequelize({
   host: env.DB_HOST,
@@ -89,6 +91,8 @@ const sequelize = new Sequelize({
     WarehouseJobItem,
     Store,
     PushSubscription,
+    StorePolicyFeature,
+    DeliveryCategory,
   ],
 });
 

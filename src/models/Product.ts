@@ -167,6 +167,14 @@ export default class Product extends Model {
   return_policy!: string;
 
   @Column({
+    type: DataType.BOOLEAN,
+    allowNull: true,
+    defaultValue: false,
+    comment: 'Admin-controlled flag for free delivery eligibility',
+  })
+  free_delivery?: boolean;
+
+  @Column({
     type: DataType.STRING(255),
     allowNull: true,
     comment: 'SEO meta title',

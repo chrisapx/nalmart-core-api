@@ -91,6 +91,13 @@ export default class Store extends Model {
   base_delivery_fee!: number;
 
   @Column({
+    type: DataType.BIGINT,
+    allowNull: true,
+    comment: 'Default delivery category for this store',
+  })
+  delivery_category_id?: number;
+
+  @Column({
     type: DataType.BOOLEAN,
     allowNull: false,
     defaultValue: true,

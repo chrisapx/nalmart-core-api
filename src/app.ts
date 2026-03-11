@@ -28,6 +28,7 @@ import paymentRoutes from './routes/payment.routes';
 import warehouseRoutes from './routes/warehouse.routes';
 import rbacRoutes from './routes/rbac.routes';
 import pushRoutes from './routes/push.routes';
+import storeRoutes from './routes/store.routes';
 import { startPaymentConfirmationJob } from './jobs/payment-confirmation.job';
 
 const app: Application = express();
@@ -96,6 +97,7 @@ app.use(`/api/${env.API_VERSION}/payments`, paymentRoutes);
 app.use(`/api/${env.API_VERSION}/warehouse`, warehouseRoutes);
 app.use(`/api/${env.API_VERSION}/rbac`, rbacRoutes);
 app.use(`/api/${env.API_VERSION}/push`, pushRoutes);
+app.use(`/api/${env.API_VERSION}/store`, storeRoutes);
 
 // 404 handler
 app.use(notFoundHandler);
