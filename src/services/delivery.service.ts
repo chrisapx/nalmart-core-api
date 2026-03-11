@@ -2,6 +2,7 @@ import { Op } from 'sequelize';
 import Delivery from '../models/Delivery';
 import DeliveryMethod from '../models/DeliveryMethod';
 import DeliveryAddress from '../models/DeliveryAddress';
+import DeliveryCategory from '../models/DeliveryCategory';
 import Store from '../models/Store';
 import Order from '../models/Order';
 import OrderItem from '../models/OrderItem';
@@ -772,6 +773,39 @@ export class DeliveryService {
       sessionToken: input.session_token,
       source: input.source,
     });
+  }
+
+  /**
+   * Get all delivery categories
+   */
+  static async getDeliveryCategories(): Promise<DeliveryCategory[]> {
+    return DeliveryCategory.findAll({
+      where: { is_active: true },
+      order: [['sort_order', 'ASC']],
+    });
+  }
+
+  /**
+   * Update a delivery category
+   */
+  static async updateDeliveryCategory(
+    categoryId: number,
+    data: Partial<{
+      description: string;
+      base_fee: number;
+      per_km_fee: number;
+      estimated_delivery_days: number;
+      is_active: boolean;
+      sort_order: number;
+    }>,
+  ): Promise<DeliveryCategory> {
+    const category = await DeliveryCategory.findByPk(categoryId);
+    if (!category) {
+      throw new NotFoundError('Delivery category not found');
+    }
+
+    await category.update(data);
+    return category;
   }
 }
 

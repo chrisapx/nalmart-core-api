@@ -37,6 +37,26 @@ router.post(
 router.get('/methods/available', DeliveryController.getAvailableMethods);
 
 /**
+ * GET /api/v1/deliveries/categories
+ */
+router.get(
+  '/categories',
+  authenticate,
+  authorize(['VIEW_STORE', 'MANAGE_STORE']),
+  DeliveryController.getDeliveryCategories,
+);
+
+/**
+ * PUT /api/v1/deliveries/categories/:id
+ */
+router.put(
+  '/categories/:id',
+  authenticate,
+  authorize(['UPDATE_STORE', 'MANAGE_STORE']),
+  DeliveryController.updateDeliveryCategory,
+);
+
+/**
  * GET /api/v1/deliveries/stores
  */
 router.get('/stores', authenticate, authorize(['VIEW_STORE', 'MANAGE_STORE']), DeliveryController.getStores);

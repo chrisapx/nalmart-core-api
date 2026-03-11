@@ -29,30 +29,6 @@ export default class DeliveryCategory extends Model {
   name!: string;
 
   @Column({
-    type: DataType.STRING(50),
-    allowNull: false,
-    unique: true,
-    comment: 'Unique slug for the category (e.g., "normal", "instant")',
-  })
-  slug!: string;
-
-  @Column({
-    type: DataType.ENUM('normal', 'instant', 'express', 'scheduled'),
-    allowNull: false,
-    defaultValue: 'normal',
-    comment: 'Type of delivery category',
-  })
-  type!: 'normal' | 'instant' | 'express' | 'scheduled';
-
-  @Column({
-    type: DataType.DECIMAL(10, 2),
-    allowNull: false,
-    defaultValue: 0,
-    comment: 'Default per-kilometer rate in UGX for this category',
-  })
-  default_per_km_rate!: number;
-
-  @Column({
     type: DataType.TEXT,
     allowNull: true,
     comment: 'Description of this delivery category',
@@ -60,11 +36,28 @@ export default class DeliveryCategory extends Model {
   description?: string;
 
   @Column({
-    type: DataType.INTEGER,
-    allowNull: true,
-    comment: 'Estimated delivery time in hours',
+    type: DataType.DECIMAL(10, 2),
+    allowNull: false,
+    defaultValue: 0,
+    comment: 'Base delivery fee in UGX',
   })
-  estimated_hours?: number;
+  base_fee!: number;
+
+  @Column({
+    type: DataType.DECIMAL(10, 2),
+    allowNull: false,
+    defaultValue: 0,
+    comment: 'Additional fee per kilometer in UGX',
+  })
+  per_km_fee!: number;
+
+  @Column({
+    type: DataType.INTEGER,
+    allowNull: false,
+    defaultValue: 3,
+    comment: 'Estimated delivery time in days',
+  })
+  estimated_delivery_days!: number;
 
   @Column({
     type: DataType.BOOLEAN,

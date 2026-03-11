@@ -534,6 +534,47 @@ export const resolveAddressLocation = async (
   }
 };
 
+/**
+ * GET /api/v1/deliveries/categories
+ * Get all delivery categories
+ */
+export const getDeliveryCategories = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const categories = await DeliveryService.getDeliveryCategories();
+    successResponse(res, categories, 'Delivery categories retrieved successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * PUT /api/v1/deliveries/categories/:id
+ * Update a delivery category
+ */
+export const updateDeliveryCategory = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const idStr = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const categoryId = parseInt(idStr as string, 10);
+
+    if (isNaN(categoryId) || categoryId < 1) {
+      throw new Error('Invalid category ID');
+    }
+
+    const category = await DeliveryService.updateDeliveryCategory(categoryId, req.body);
+    successResponse(res, category, 'Delivery category updated successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
 export default {
   getStores,
   createStore,
@@ -559,4 +600,6 @@ export default {
   updateDeliveryAddress,
   deleteDeliveryAddress,
   getDeliveryStats,
+  getDeliveryCategories,
+  updateDeliveryCategory,
 };
