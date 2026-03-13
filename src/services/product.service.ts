@@ -4,6 +4,9 @@ import Product from '../models/Product';
 import Category from '../models/Category';
 import ProductImage from '../models/ProductImage';
 import ProductVideo from '../models/ProductVideo';
+import ProductAuditLog from '../models/ProductAuditLog';
+import Store from '../models/Store';
+import User from '../models/User';
 import { NotFoundError, BadRequestError } from '../utils/errors';
 import logger from '../utils/logger';
 import { UploadService } from './upload.service';
@@ -55,6 +58,14 @@ interface MediaData {
 interface UpdateProductInput extends Partial<CreateProductInput> {}
 
 interface UpdateProductInput extends Partial<CreateProductInput> {}
+
+export interface AuditActor {
+  id?: number | null;
+  email?: string | null;
+  name?: string | null;
+  ip?: string | null;
+  userAgent?: string | null;
+}
 
 interface GetProductsQuery {
   page?: number;
@@ -417,7 +428,8 @@ export class ProductService {
   static async createProduct(
     data: CreateProductInput,
     files?: Express.Multer.File[] | Record<string, Express.Multer.File[]>,
-    bodyData?: any
+    bodyData?: any,
+    actor?: AuditActor
   ): Promise<Product> {
     let slug = data.slug || this.generateSlug(data.name);
     slug = await this.ensureUniqueSlug(slug);
@@ -456,6 +468,8 @@ export class ProductService {
       sku,
       jug,
       stock_status: stockStatus,
+      created_by: actor?.id ?? null,
+      updated_by: actor?.id ?? null,
     });
 
     // Upload media files after product creation
@@ -465,6 +479,19 @@ export class ProductService {
       // Log error but don't fail the product creation
       logger.error(`Error uploading media for product ${product.id}:`, error);
     }
+
+    // Write audit log
+    ProductAuditLog.create({
+      product_id: product.id,
+      actor_id:    actor?.id    ?? null,
+      actor_email: actor?.email ?? null,
+      actor_name:  actor?.name  ?? null,
+      action:      'create',
+      changes:     null,
+      snapshot:    product.toJSON(),
+      ip_address:  actor?.ip        ?? null,
+      user_agent:  actor?.userAgent ?? null,
+    }).catch((e: unknown) => logger.warn('[Audit] Failed to write create log:', e));
 
     logger.info(`Product created: ${product.id} - ${product.name} (SKU: ${sku}, JUG: ${jug})`);
 
@@ -597,6 +624,21 @@ export class ProductService {
           attributes: ['id', 'name', 'slug', 'description'],
         },
         {
+          model: Store,
+          as: 'store',
+          attributes: ['id', 'name', 'email', 'phone', 'logo_url', 'description', 'is_official'],
+        },
+        {
+          model: User,
+          as: 'createdByUser',
+          attributes: ['id', 'first_name', 'last_name', 'email', 'avatar_url'],
+        },
+        {
+          model: User,
+          as: 'updatedByUser',
+          attributes: ['id', 'first_name', 'last_name', 'email', 'avatar_url'],
+        },
+        {
           model: ProductImage,
           as: 'images',
           attributes: ['id', 'url', 'name', 'alt_text', 'is_primary', 'image_type', 'sort_order', 'width', 'height', 'size', 'mime_type'],
@@ -653,13 +695,17 @@ export class ProductService {
     id: number,
     data: UpdateProductInput,
     files?: Express.Multer.File[] | Record<string, Express.Multer.File[]>,
-    bodyData?: any
+    bodyData?: any,
+    actor?: AuditActor
   ): Promise<Product> {
     const product = await Product.findByPk(id);
 
     if (!product) {
       throw new NotFoundError(`Product with ID ${id} not found`);
     }
+
+    // Capture the diff before updating
+    const before = product.toJSON() as Record<string, unknown>;
 
     if (data.slug) {
       data.slug = await this.ensureUniqueSlug(data.slug, id);
@@ -697,7 +743,7 @@ export class ProductService {
       data.stock_status = this.determineStockStatus(data.stock_quantity) as any;
     }
 
-    await product.update(data);
+    await product.update({ ...data, updated_by: actor?.id ?? product.updated_by });
 
     // Upload new media files if provided
     if (files) {
@@ -731,17 +777,52 @@ export class ProductService {
 
     logger.info(`Product updated: ${product.id} - ${product.name}`);
 
+    // Compute field-level diff for audit log
+    const after = product.toJSON() as Record<string, unknown>;
+    const IGNORE = new Set(['updated_at', 'created_at', 'deleted_at']);
+    const changes: Record<string, { from: unknown; to: unknown }> = {};
+    for (const key of Object.keys(after)) {
+      if (IGNORE.has(key)) continue;
+      if (JSON.stringify(before[key]) !== JSON.stringify(after[key])) {
+        changes[key] = { from: before[key], to: after[key] };
+      }
+    }
+    ProductAuditLog.create({
+      product_id:  id,
+      actor_id:    actor?.id    ?? null,
+      actor_email: actor?.email ?? null,
+      actor_name:  actor?.name  ?? null,
+      action:      'update',
+      changes:     Object.keys(changes).length ? changes : null,
+      snapshot:    after,
+      ip_address:  actor?.ip        ?? null,
+      user_agent:  actor?.userAgent ?? null,
+    }).catch((e: unknown) => logger.warn('[Audit] Failed to write update log:', e));
+
     return await this.getProductById(id);
   }
 
-  static async deleteProduct(id: number): Promise<void> {
+  static async deleteProduct(id: number, actor?: AuditActor): Promise<void> {
     const product = await Product.findByPk(id);
 
     if (!product) {
       throw new NotFoundError(`Product with ID ${id} not found`);
     }
 
+    const snapshot = product.toJSON();
     await product.destroy();
+
+    ProductAuditLog.create({
+      product_id:  id,
+      actor_id:    actor?.id    ?? null,
+      actor_email: actor?.email ?? null,
+      actor_name:  actor?.name  ?? null,
+      action:      'delete',
+      changes:     null,
+      snapshot,
+      ip_address:  actor?.ip        ?? null,
+      user_agent:  actor?.userAgent ?? null,
+    }).catch((e: unknown) => logger.warn('[Audit] Failed to write delete log:', e));
 
     logger.info(`Product deleted: ${id} - ${product.name}`);
   }
@@ -1023,5 +1104,54 @@ export class ProductService {
     );
 
     return await this.getProductById(newProduct.id);
+  }
+
+  /**
+   * Get audit trail for a product (admin / vendor use)
+   */
+  static async getProductAuditLogs(
+    productId: number,
+    limit = 50,
+    offset = 0
+  ): Promise<{ rows: ProductAuditLog[]; count: number }> {
+    const { rows, count } = await ProductAuditLog.findAndCountAll({
+      where: { product_id: productId },
+      order: [['created_at', 'DESC']],
+      limit,
+      offset,
+    });
+    return { rows, count };
+  }
+
+  /**
+   * Get all audit logs across all products (admin dashboard)
+   */
+  static async getAllAuditLogs(opts: {
+    productId?: number;
+    actorId?: number;
+    action?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ rows: ProductAuditLog[]; count: number }> {
+    const where: any = {};
+    if (opts.productId) where.product_id = opts.productId;
+    if (opts.actorId)   where.actor_id   = opts.actorId;
+    if (opts.action)    where.action     = opts.action;
+
+    const { rows, count } = await ProductAuditLog.findAndCountAll({
+      where,
+      order: [['created_at', 'DESC']],
+      limit:  opts.limit  ?? 50,
+      offset: opts.offset ?? 0,
+      include: [
+        {
+          model: Product,
+          as: 'product',
+          attributes: ['id', 'name', 'sku'],
+          paranoid: false,
+        },
+      ],
+    });
+    return { rows, count };
   }
 }

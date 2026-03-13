@@ -5,7 +5,12 @@ import {
   DataType,
   CreatedAt,
   UpdatedAt,
+  BelongsToMany,
+  HasMany,
 } from 'sequelize-typescript';
+import StoreUser from './StoreUser';
+import User from './User';
+import Product from './Product';
 
 @Table({
   tableName: 'stores',
@@ -133,6 +138,27 @@ export default class Store extends Model {
   is_official!: boolean;
 
   @Column({
+    type: DataType.STRING(150),
+    allowNull: true,
+    comment: 'Store contact email',
+  })
+  email?: string;
+
+  @Column({
+    type: DataType.STRING(30),
+    allowNull: true,
+    comment: 'Store contact phone number',
+  })
+  phone?: string;
+
+  @Column({
+    type: DataType.TEXT,
+    allowNull: true,
+    comment: 'Short description of the store / vendor',
+  })
+  description?: string;
+
+  @Column({
     type: DataType.JSON,
     allowNull: true,
   })
@@ -143,4 +169,11 @@ export default class Store extends Model {
 
   @UpdatedAt
   updated_at!: Date;
+
+  // Associations
+  @BelongsToMany(() => User, () => StoreUser)
+  users?: User[];
+
+  @HasMany(() => Product, { foreignKey: 'store_id', as: 'products', constraints: false })
+  products?: Product[];
 }

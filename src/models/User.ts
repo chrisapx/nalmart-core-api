@@ -16,6 +16,8 @@ import Role from './Role';
 import UserRole from './UserRole';
 import LoginSession from './LoginSession';
 import VerificationToken from './VerificationToken';
+import Store from './Store';
+import StoreUser from './StoreUser';
 
 @Table({
   tableName: 'users',
@@ -173,6 +175,9 @@ export default class User extends Model {
   // Associations
   @BelongsToMany(() => Role, () => UserRole)
   roles!: Role[];
+
+  @BelongsToMany(() => Store, () => StoreUser)
+  stores?: Store[];
 
   @HasMany(() => LoginSession)
   sessions!: LoginSession[];

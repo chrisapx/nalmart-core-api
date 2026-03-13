@@ -1,9 +1,21 @@
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../types/express';
-import { ProductService } from '../services/product.service';
+import { ProductService, AuditActor } from '../services/product.service';
 import { successResponse } from '../utils/response';
 import logger from '../utils/logger';
 import { NotFoundError } from '../utils/errors';
+
+/** Build actor context from the authenticated request */
+function actorFrom(req: AuthRequest): AuditActor {
+  const user = req.user as any;
+  return {
+    id:        user?.id   ?? null,
+    email:     user?.email ?? null,
+    name:      user ? `${user.first_name ?? ''} ${user.last_name ?? ''}`.trim() : null,
+    ip:        req.ip ?? req.socket?.remoteAddress ?? null,
+    userAgent: req.get('user-agent') ?? null,
+  };
+}
 
 export const createProduct = async (
   req: AuthRequest,
@@ -28,7 +40,7 @@ export const createProduct = async (
       }
     }
 
-    const product = await ProductService.createProduct(productData, req.files, req.body);
+    const product = await ProductService.createProduct(productData, req.files, req.body, actorFrom(req));
 
     res.status(201).json({
       success: true,
@@ -137,7 +149,7 @@ export const updateProduct = async (
       }
     }
 
-    const product = await ProductService.updateProduct(productId, productData, req.files, req.body);
+    const product = await ProductService.updateProduct(productId, productData, req.files, req.body, actorFrom(req));
 
     res.status(200).json({
       success: true,
@@ -157,7 +169,7 @@ export const deleteProduct = async (
   try {
     const id = req.params.id;
     const productId = typeof id === 'number' ? id : parseInt(Array.isArray(id) ? id[0] : id, 10);
-    await ProductService.deleteProduct(productId);
+    await ProductService.deleteProduct(productId, actorFrom(req));
 
     successResponse(res, null, 'Product deleted successfully');
   } catch (error) {
@@ -345,6 +357,43 @@ export const getUniqueBrands = async (
     const brands = await ProductService.getUniqueBrands(search);
 
     successResponse(res, brands, 'Brands retrieved successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getProductAuditLogs = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const id = req.params.id;
+    const productId = typeof id === 'number' ? id : parseInt(Array.isArray(id) ? id[0] : id, 10);
+    const limit  = req.query.limit  ? parseInt(req.query.limit  as string, 10) : 50;
+    const offset = req.query.offset ? parseInt(req.query.offset as string, 10) : 0;
+    const { rows, count } = await ProductService.getProductAuditLogs(productId, limit, offset);
+    successResponse(res, rows, 'Audit logs retrieved', 200, { total: count });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getAllProductAuditLogs = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const opts = {
+      productId: req.query.product_id ? parseInt(req.query.product_id as string, 10) : undefined,
+      actorId:   req.query.actor_id   ? parseInt(req.query.actor_id   as string, 10) : undefined,
+      action:    req.query.action as string | undefined,
+      limit:     req.query.limit  ? parseInt(req.query.limit  as string, 10) : 50,
+      offset:    req.query.offset ? parseInt(req.query.offset as string, 10) : 0,
+    };
+    const { rows, count } = await ProductService.getAllAuditLogs(opts);
+    successResponse(res, rows, 'Audit logs retrieved', 200, { total: count });
   } catch (error) {
     next(error);
   }

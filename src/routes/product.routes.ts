@@ -17,6 +17,8 @@ import {
   getUniqueBrands,
   deleteProductImage,
   deleteProductVideo,
+  getProductAuditLogs,
+  getAllProductAuditLogs,
 } from '../controllers/product.controller';
 import { authenticate } from '../middleware/auth';
 import { authorize } from '../middleware/rbac';
@@ -148,6 +150,24 @@ router.post(
   // authorize('CREATE_PRODUCT'),
   validateParams(productIdParamSchema),
   duplicateProduct
+);
+
+/**
+ * Audit trail endpoints (admin only)
+ */
+router.get(
+  '/audit-logs',
+  authenticate,
+  authorize('VIEW_PRODUCT'),
+  getAllProductAuditLogs
+);
+
+router.get(
+  '/:id/audit-logs',
+  authenticate,
+  authorize('VIEW_PRODUCT'),
+  validateParams(productIdParamSchema),
+  getProductAuditLogs
 );
 
 /**

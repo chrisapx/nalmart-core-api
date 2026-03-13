@@ -15,6 +15,9 @@ import Category from './Category';
 import ProductImage from './ProductImage';
 import ProductVideo from './ProductVideo';
 import Inventory from './Inventory';
+import Store from './Store';
+import User from './User';
+import ProductAuditLog from './ProductAuditLog';
 
 @Table({
   tableName: 'products',
@@ -106,6 +109,30 @@ export default class Product extends Model {
     allowNull: true,
   })
   category_id!: number;
+
+  @ForeignKey(() => Store)
+  @Column({
+    type: DataType.BIGINT,
+    allowNull: true,
+    comment: 'Which store this product belongs to (null = Nalmart official)',
+  })
+  store_id!: number | null;
+
+  @ForeignKey(() => User)
+  @Column({
+    type: DataType.BIGINT,
+    allowNull: true,
+    comment: 'User who first created this product',
+  })
+  created_by!: number | null;
+
+  @ForeignKey(() => User)
+  @Column({
+    type: DataType.BIGINT,
+    allowNull: true,
+    comment: 'User who last updated this product',
+  })
+  updated_by!: number | null;
 
   @Column({
     type: DataType.INTEGER,
@@ -247,6 +274,15 @@ export default class Product extends Model {
   @BelongsTo(() => Category)
   category!: Category;
 
+  @BelongsTo(() => Store, { foreignKey: 'store_id', as: 'store', constraints: false })
+  store?: Store;
+
+  @BelongsTo(() => User, { foreignKey: 'created_by', as: 'createdByUser', constraints: false })
+  createdByUser?: User;
+
+  @BelongsTo(() => User, { foreignKey: 'updated_by', as: 'updatedByUser', constraints: false })
+  updatedByUser?: User;
+
   @HasMany(() => ProductImage)
   images!: ProductImage[];
 
@@ -255,4 +291,7 @@ export default class Product extends Model {
 
   @HasOne(() => Inventory, { foreignKey: 'product_id', as: 'inventory' })
   inventory?: Inventory;
+
+  @HasMany(() => ProductAuditLog, { foreignKey: 'product_id', as: 'auditLogs' })
+  auditLogs?: ProductAuditLog[];
 }
