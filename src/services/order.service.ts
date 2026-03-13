@@ -327,12 +327,6 @@ export class OrderService {
           },
           {
             model: OrderItem,
-            include: [
-              {
-                model: Product,
-                attributes: ['id', 'name', 'sku', 'image_url'],
-              },
-            ],
           },
         ],
       });
@@ -356,12 +350,6 @@ export class OrderService {
           },
           {
             model: OrderItem,
-            include: [
-              {
-                model: Product,
-                attributes: ['id', 'name', 'sku', 'image_url'],
-              },
-            ],
           },
         ],
       });
