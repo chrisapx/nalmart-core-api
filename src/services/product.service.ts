@@ -620,7 +620,7 @@ export class ProductService {
 
   static async getProductBySlug(slug: string): Promise<Product> {
     const product = await Product.findOne({
-      where: { slug },
+      where: { slug, is_published: true },
       include: [
         {
           model: Category,
@@ -787,6 +787,7 @@ export class ProductService {
       where: {
         is_featured: true,
         is_active: true,
+        is_published: true,
       },
       limit,
       order: [['created_at', 'DESC']],
@@ -828,6 +829,7 @@ export class ProductService {
     const where: WhereOptions = {
       id: { [Op.ne]: id },
       is_active: true,
+      is_published: true,
     };
 
     if (product.category_id) {

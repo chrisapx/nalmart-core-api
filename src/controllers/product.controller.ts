@@ -81,6 +81,10 @@ export const getProductById = async (
     const productId = typeof id === 'number' ? id : parseInt(Array.isArray(id) ? id[0] : id, 10);
     const product = await ProductService.getProductById(productId);
 
+    if (!product.is_published) {
+      throw new NotFoundError(`Product with ID ${productId} not found`);
+    }
+
     await ProductService.incrementViewCount(productId);
 
     successResponse(res, product, 'Product retrieved successfully');
