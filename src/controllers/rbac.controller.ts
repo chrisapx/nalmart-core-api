@@ -134,7 +134,7 @@ export const getUsers = async (req: AuthRequest, res: Response, next: NextFuncti
     const { count, rows } = await User.findAndCountAll({
       where,
       include: [{ model: Role, through: { attributes: [] } }],
-      attributes: ['id', 'first_name', 'last_name', 'email', 'avatar_url', 'is_active', 'created_at'],
+      attributes: ['id', 'first_name', 'last_name', 'email', 'avatar_url', 'status', 'created_at'],
       order: [['created_at', 'DESC']],
       limit: parseInt(String(limit), 10),
       offset,
