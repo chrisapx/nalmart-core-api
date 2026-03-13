@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { PushService } from '../services/push.service';
-import { authenticate } from '../middleware/auth';
+import { authenticate, optionalAuth } from '../middleware/auth';
+import { AuthRequest } from '../types/express';
 
 const router = Router();
 
@@ -19,7 +20,7 @@ router.get('/vapid-public-key', (_req: Request, res: Response) => {
  * Authenticated users get their user_id linked automatically.
  * Unauthenticated (e.g. admin SPA pre-login) still works; userId stays null.
  */
-router.post('/subscribe', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/subscribe', optionalAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { endpoint, keys, role = 'client', userAgent } = req.body as {
       endpoint: string;
@@ -33,18 +34,8 @@ router.post('/subscribe', async (req: Request, res: Response, next: NextFunction
       return;
     }
 
-    // Optionally pull user from JWT — but don't reject if missing
-    let userId: number | null = null;
-    try {
-      await new Promise<void>((resolve) => {
-        authenticate(req, res, (err: any) => {
-          if (!err && (req as any).user?.id) {
-            userId = (req as any).user.id;
-          }
-          resolve();
-        });
-      });
-    } catch {} // best-effort auth
+    // optionalAuth already attached user if a valid token was provided
+    const userId: number | null = (req as AuthRequest).userId ?? null;
 
     await PushService.upsertSubscription({
       endpoint,
