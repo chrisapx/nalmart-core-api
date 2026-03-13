@@ -5,6 +5,7 @@ import { successResponse } from '../utils/response';
 import { NotFoundError, ForbiddenError } from '../utils/errors';
 import Store from '../models/Store';
 import StoreUser from '../models/StoreUser';
+import { StoreRole, DEFAULT_ROLE_PERMISSIONS, StorePermissionSlug } from '../models/StoreUser';
 import Product from '../models/Product';
 import ProductImage from '../models/ProductImage';
 import ProductAuditLog from '../models/ProductAuditLog';
@@ -495,7 +496,7 @@ export const addStoreUser = async (
 ): Promise<void> => {
   try {
     const storeId    = parseId(req.params.storeId);
-    const { user_id, role = 'vendor' } = req.body;
+    const { user_id, role = 'staff', invited_by, invitation_note, permissions } = req.body;
 
     const store = await Store.findByPk(storeId);
     if (!store) throw new NotFoundError('Store not found');
@@ -505,11 +506,11 @@ export const addStoreUser = async (
 
     const [record, created] = await StoreUser.findOrCreate({
       where: { store_id: storeId, user_id },
-      defaults: { store_id: storeId, user_id, role, is_active: true },
+      defaults: { store_id: storeId, user_id, role, invited_by, invitation_note, permissions, is_active: true },
     });
 
     if (!created) {
-      await record.update({ role, is_active: true });
+      await record.update({ role, is_active: true, permissions: permissions ?? null });
     }
 
     logger.info(`User ${user_id} assigned to store ${storeId} as ${role}`);
@@ -556,6 +557,262 @@ export const getAllStores = async (
       order: [['created_at', 'DESC']],
     });
     successResponse(res, stores, 'All stores retrieved');
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ── Store staff management (manager + admin) ──────────────────────────────────
+
+/**
+ * Helper: get the calling user's membership in a store.
+ * Returns null if the user is a super-admin (they bypass membership checks).
+ */
+async function getCallerMembership(
+  userId: number,
+  storeId: number,
+  isSuperAdmin: boolean
+): Promise<StoreUser | null> {
+  if (isSuperAdmin) return null;
+  const membership = await StoreUser.findOne({
+    where: { store_id: storeId, user_id: userId, is_active: true },
+  });
+  return membership ?? null;
+}
+
+/** Roles that are allowed to manage store staff */
+const MANAGER_ROLES: StoreRole[] = ['owner', 'manager'];
+/** Roles a manager is allowed to assign to others (they cannot promote to own level+) */
+const ASSIGNABLE_BY_MANAGER: StoreRole[] = ['staff', 'viewer'];
+
+/**
+ * GET /vendor/stores/:storeId/members
+ * List all members of a store (admin, owner, or manager of the store).
+ */
+export const getStoreMembers = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const storeId = parseId(req.params.storeId);
+    const caller  = req.user as any;
+    await resolveAccessibleStoreIds(caller, storeId);
+
+    const members = await StoreUser.findAll({
+      where: { store_id: storeId },
+      include: [
+        {
+          model: User,
+          as: 'user',
+          attributes: ['id', 'first_name', 'last_name', 'email', 'avatar_url'],
+        },
+        {
+          model: User,
+          as: 'invitedBy',
+          attributes: ['id', 'first_name', 'last_name', 'email'],
+          required: false,
+        },
+      ],
+      order: [['created_at', 'ASC']],
+    });
+
+    successResponse(res, members, 'Store members retrieved');
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * POST /vendor/stores/:storeId/staff
+ * Manager or admin invites a new staff member.
+ * Body: { user_id, role: 'staff'|'viewer', permissions?, invitation_note? }
+ */
+export const addStoreStaff = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const storeId = parseId(req.params.storeId);
+    const caller  = req.user as any;
+
+    const callerMembership = await getCallerMembership(caller.id, storeId, !!caller.is_super_admin);
+    const isAdmin          = caller.is_super_admin || caller.role === 'admin';
+
+    if (!isAdmin && (!callerMembership || !MANAGER_ROLES.includes(callerMembership.role))) {
+      throw new ForbiddenError('Only store managers/owners or admins can add staff');
+    }
+
+    const { user_id, role = 'staff', permissions, invitation_note } = req.body;
+    if (!user_id) throw new NotFoundError('user_id is required');
+
+    // Non-admin managers cannot assign manager/owner roles
+    if (!isAdmin && !ASSIGNABLE_BY_MANAGER.includes(role as StoreRole)) {
+      throw new ForbiddenError(`Managers can only assign roles: ${ASSIGNABLE_BY_MANAGER.join(', ')}`);
+    }
+
+    const store      = await Store.findByPk(storeId);
+    if (!store) throw new NotFoundError('Store not found');
+
+    const targetUser = await User.findByPk(user_id);
+    if (!targetUser) throw new NotFoundError('User not found');
+
+    const [record, created] = await StoreUser.findOrCreate({
+      where: { store_id: storeId, user_id },
+      defaults: {
+        store_id:        storeId,
+        user_id,
+        role:            role as StoreRole,
+        permissions:     permissions ?? null,
+        invited_by:      caller.id,
+        invitation_note: invitation_note ?? null,
+        is_active:       true,
+      },
+    });
+
+    if (!created) {
+      await record.update({
+        role:            role as StoreRole,
+        permissions:     permissions ?? null,
+        invitation_note: invitation_note ?? null,
+        is_active:       true,
+      });
+    }
+
+    logger.info(`User ${user_id} ${created ? 'added to' : 'updated in'} store ${storeId} as ${role} by ${caller.id}`);
+    successResponse(res, record, created ? 'Staff added' : 'Staff updated', created ? 201 : 200);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * PATCH /vendor/stores/:storeId/staff/:userId
+ * Manager or admin updates a staff member's role or permissions.
+ * Body: { role?, permissions?, invitation_note?, is_active? }
+ */
+export const updateStoreStaff = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const storeId    = parseId(req.params.storeId);
+    const targetUserId = parseId(req.params.userId);
+    const caller     = req.user as any;
+
+    const callerMembership = await getCallerMembership(caller.id, storeId, !!caller.is_super_admin);
+    const isAdmin          = caller.is_super_admin || caller.role === 'admin';
+
+    if (!isAdmin && (!callerMembership || !MANAGER_ROLES.includes(callerMembership.role))) {
+      throw new ForbiddenError('Only store managers/owners or admins can update staff');
+    }
+
+    const record = await StoreUser.findOne({ where: { store_id: storeId, user_id: targetUserId } });
+    if (!record) throw new NotFoundError('Staff member not found');
+
+    const { role, permissions, invitation_note, is_active } = req.body;
+
+    // Non-admin managers cannot promote to manager/owner
+    if (!isAdmin && role && !ASSIGNABLE_BY_MANAGER.includes(role as StoreRole)) {
+      throw new ForbiddenError(`Managers can only assign roles: ${ASSIGNABLE_BY_MANAGER.join(', ')}`);
+    }
+
+    const updates: Record<string, unknown> = {};
+    if (role            !== undefined) updates.role            = role;
+    if (permissions     !== undefined) updates.permissions     = permissions;
+    if (invitation_note !== undefined) updates.invitation_note = invitation_note;
+    if (is_active       !== undefined) updates.is_active       = is_active;
+
+    await record.update(updates);
+    logger.info(`Store ${storeId} member ${targetUserId} updated by ${caller.id}`);
+    successResponse(res, record, 'Staff updated');
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * DELETE /vendor/stores/:storeId/staff/:userId
+ * Manager or admin removes a staff member from the store.
+ * Managers cannot remove other managers or owners.
+ */
+export const removeStoreStaff = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const storeId      = parseId(req.params.storeId);
+    const targetUserId = parseId(req.params.userId);
+    const caller       = req.user as any;
+
+    const callerMembership = await getCallerMembership(caller.id, storeId, !!caller.is_super_admin);
+    const isAdmin          = caller.is_super_admin || caller.role === 'admin';
+
+    if (!isAdmin && (!callerMembership || !MANAGER_ROLES.includes(callerMembership.role))) {
+      throw new ForbiddenError('Only store managers/owners or admins can remove staff');
+    }
+
+    const record = await StoreUser.findOne({ where: { store_id: storeId, user_id: targetUserId } });
+    if (!record) throw new NotFoundError('Staff member not found');
+
+    // Non-admin managers cannot remove managers or owners
+    if (!isAdmin && MANAGER_ROLES.includes(record.role as StoreRole)) {
+      throw new ForbiddenError('Managers cannot remove other managers or owners');
+    }
+
+    // Cannot remove yourself if you are the only owner
+    if (record.role === 'owner' && targetUserId === caller.id) {
+      const ownerCount = await StoreUser.count({
+        where: { store_id: storeId, role: 'owner', is_active: true },
+      });
+      if (ownerCount <= 1) {
+        throw new ForbiddenError('Cannot remove the only owner of a store');
+      }
+    }
+
+    await record.destroy();
+    logger.info(`User ${targetUserId} removed from store ${storeId} by ${caller.id}`);
+    successResponse(res, null, 'Staff member removed');
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * GET /vendor/stores/:storeId/my-permissions
+ * Returns the effective permissions for the calling user in this store.
+ */
+export const getMyStorePermissions = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const storeId = parseId(req.params.storeId);
+    const caller  = req.user as any;
+
+    if (caller.is_super_admin) {
+      successResponse(res, {
+        role: 'owner' as StoreRole,
+        permissions: DEFAULT_ROLE_PERMISSIONS['owner'],
+      }, 'Permissions retrieved');
+      return;
+    }
+
+    const membership = await StoreUser.findOne({
+      where: { store_id: storeId, user_id: caller.id, is_active: true },
+    });
+
+    if (!membership) throw new ForbiddenError('You are not a member of this store');
+
+    const effective: StorePermissionSlug[] =
+      (membership.permissions as StorePermissionSlug[] | null | undefined) ??
+      DEFAULT_ROLE_PERMISSIONS[membership.role as StoreRole];
+
+    successResponse(res, { role: membership.role, permissions: effective }, 'Permissions retrieved');
   } catch (error) {
     next(error);
   }

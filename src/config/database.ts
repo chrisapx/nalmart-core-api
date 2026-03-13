@@ -39,6 +39,7 @@ import StorePolicyFeature from '../models/StorePolicyFeature';
 import DeliveryCategory from '../models/DeliveryCategory';
 import StoreUser from '../models/StoreUser';
 import ProductAuditLog from '../models/ProductAuditLog';
+import StoreApplication from '../models/StoreApplication';
 
 const sequelize = new Sequelize({
   host: env.DB_HOST,
@@ -97,6 +98,7 @@ const sequelize = new Sequelize({
     DeliveryCategory,
     StoreUser,
     ProductAuditLog,
+    StoreApplication,
   ],
 });
 
