@@ -125,15 +125,16 @@ export const getUsers = async (req: AuthRequest, res: Response, next: NextFuncti
     const where: any = {};
     if (search) {
       where[Op.or] = [
-        { name: { [Op.like]: `%${search}%` } },
-        { email: { [Op.like]: `%${search}%` } },
+        { first_name: { [Op.like]: `%${search}%` } },
+        { last_name:  { [Op.like]: `%${search}%` } },
+        { email:      { [Op.like]: `%${search}%` } },
       ];
     }
 
     const { count, rows } = await User.findAndCountAll({
       where,
       include: [{ model: Role, through: { attributes: [] } }],
-      attributes: ['id', 'name', 'email', 'is_active', 'created_at'],
+      attributes: ['id', 'first_name', 'last_name', 'email', 'avatar_url', 'is_active', 'created_at'],
       order: [['created_at', 'DESC']],
       limit: parseInt(String(limit), 10),
       offset,
