@@ -15,6 +15,7 @@ import Payment from '../models/Payment';
 import User from '../models/User';
 import Category from '../models/Category';
 import logger from '../utils/logger';
+import { PermissionService } from '../services/permission.service';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -31,7 +32,7 @@ async function resolveAccessibleStoreIds(
   user: any,
   requestedStoreId?: number
 ): Promise<number[]> {
-  if (user?.is_super_admin) {
+  if (await PermissionService.isAdmin(user)) {
     if (requestedStoreId !== undefined) return [requestedStoreId];
     const all = await Store.findAll({ attributes: ['id'], where: { is_active: true } });
     return all.map((s) => s.id);
@@ -637,8 +638,8 @@ export const addStoreStaff = async (
     const storeId = parseId(req.params.storeId);
     const caller  = req.user as any;
 
-    const callerMembership = await getCallerMembership(caller.id, storeId, !!caller.is_super_admin);
-    const isAdmin          = caller.is_super_admin || caller.role === 'admin';
+    const isAdmin          = await PermissionService.isAdmin(caller);
+    const callerMembership = await getCallerMembership(caller.id, storeId, isAdmin);
 
     if (!isAdmin && (!callerMembership || !MANAGER_ROLES.includes(callerMembership.role))) {
       throw new ForbiddenError('Only store managers/owners or admins can add staff');
@@ -702,8 +703,8 @@ export const updateStoreStaff = async (
     const targetUserId = parseId(req.params.userId);
     const caller     = req.user as any;
 
-    const callerMembership = await getCallerMembership(caller.id, storeId, !!caller.is_super_admin);
-    const isAdmin          = caller.is_super_admin || caller.role === 'admin';
+    const isAdmin          = await PermissionService.isAdmin(caller);
+    const callerMembership = await getCallerMembership(caller.id, storeId, isAdmin);
 
     if (!isAdmin && (!callerMembership || !MANAGER_ROLES.includes(callerMembership.role))) {
       throw new ForbiddenError('Only store managers/owners or admins can update staff');
@@ -748,8 +749,8 @@ export const removeStoreStaff = async (
     const targetUserId = parseId(req.params.userId);
     const caller       = req.user as any;
 
-    const callerMembership = await getCallerMembership(caller.id, storeId, !!caller.is_super_admin);
-    const isAdmin          = caller.is_super_admin || caller.role === 'admin';
+    const isAdmin          = await PermissionService.isAdmin(caller);
+    const callerMembership = await getCallerMembership(caller.id, storeId, isAdmin);
 
     if (!isAdmin && (!callerMembership || !MANAGER_ROLES.includes(callerMembership.role))) {
       throw new ForbiddenError('Only store managers/owners or admins can remove staff');
@@ -794,7 +795,7 @@ export const getMyStorePermissions = async (
     const storeId = parseId(req.params.storeId);
     const caller  = req.user as any;
 
-    if (caller.is_super_admin) {
+    if (await PermissionService.isAdmin(caller)) {
       successResponse(res, {
         role: 'owner' as StoreRole,
         permissions: DEFAULT_ROLE_PERMISSIONS['owner'],
