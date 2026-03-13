@@ -75,12 +75,37 @@ export class PushService {
         { TTL: 3600 },
       );
     } catch (err: any) {
-      if (err?.statusCode === 404 || err?.statusCode === 410) {
-        // Subscription is gone — clean up
+      const code: number | undefined = err?.statusCode;
+
+      if (code === 404 || code === 410) {
+        // Subscription definitively gone — clean up silently
         await sub.destroy().catch(() => {});
-        logger.debug(`[Push] Removed stale subscription ${sub.id}`);
+        logger.debug(`[Push] Removed stale subscription ${sub.id} (${code})`);
+
+      } else if (code === 400 || code === 401 || code === 403) {
+        // Invalid / expired subscription or VAPID rejected — log details and clean up
+        // so the device re-subscribes on next page load with fresh credentials
+        logger.warn(`[Push] Sub ${sub.id} rejected (${code}): ${err?.body || err?.message} — removing`);
+        await sub.destroy().catch(() => {});
+
+      } else if (code === 413) {
+        // Payload too large — retry once without the image field
+        logger.warn(`[Push] Sub ${sub.id} payload too large (413), retrying without image`);
+        if (payload.image) {
+          const { image: _img, ...trimmed } = payload;
+          try {
+            await webpush.sendNotification(
+              { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+              JSON.stringify(trimmed),
+              { TTL: 3600 },
+            );
+          } catch (retryErr: any) {
+            logger.warn(`[Push] Sub ${sub.id} retry without image also failed: ${retryErr?.message}`);
+          }
+        }
+
       } else {
-        logger.warn(`[Push] Failed to send to sub ${sub.id}: ${err?.message}`);
+        logger.warn(`[Push] Failed to send to sub ${sub.id} (status=${code ?? 'unknown'}): ${err?.body || err?.message}`);
       }
     }
   }
