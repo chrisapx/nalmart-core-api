@@ -17,6 +17,7 @@ export interface PushPayload {
   body: string;
   icon?: string;
   badge?: string;
+  image?: string;        // large product/hero image shown below the body
   tag?: string;          // collapses duplicate notifications of same type
   data?: Record<string, unknown>;
   actions?: Array<{ action: string; title: string }>;
@@ -115,6 +116,8 @@ export class PushService {
     await PushService.notifyAdmins({
       title: '🛒 New Order Received',
       body:  `#${opts.orderNumber} — ${opts.customerName} · ${opts.currency} ${fmt(opts.total)}`,
+      icon:  '/logo.svg',
+      badge: '/logo.svg',
       tag:   `new-order-${opts.orderNumber}`,
       data:  { url: `/orders/${opts.orderId}`, orderId: opts.orderId },
       actions: [{ action: 'view', title: 'View Order' }],
@@ -128,6 +131,7 @@ export class PushService {
     status: string;
     total: number;
     currency: string;
+    image?: string;   // first product image shown in the notification
   }): Promise<void> {
     const statusMessages: Record<string, { title: string; body: string }> = {
       pending:          { title: '🛒 Order Placed',           body: `Your order #${opts.orderNumber} has been placed and is awaiting confirmation.` },
@@ -149,6 +153,9 @@ export class PushService {
     await PushService.notifyUser(opts.userId, {
       title: msg.title,
       body:  msg.body,
+      icon:  '/logo.svg',
+      badge: '/logo.svg',
+      image: opts.image || undefined,
       tag:   `order-status-${opts.orderNumber}`,
       data:  { url: `/orders?order=${opts.orderNumber}`, orderId: opts.orderId },
       actions: [{ action: 'view', title: 'View Order' }],
@@ -158,6 +165,8 @@ export class PushService {
     await PushService.notifyAdmins({
       title: `Order #${opts.orderNumber} → ${opts.status.replace(/_/g, ' ')}`,
       body:  `Status updated to ${opts.status.replace(/_/g, ' ')}.`,
+      icon:  '/logo.svg',
+      badge: '/logo.svg',
       tag:   `admin-order-status-${opts.orderNumber}-${opts.status}`,
       data:  { url: `/orders/${opts.orderId}`, orderId: opts.orderId },
     });

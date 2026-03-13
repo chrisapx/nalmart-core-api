@@ -299,6 +299,9 @@ export class OrderService {
       PushService.notifyUser(data.user_id, {
         title: '🛒 Order Placed!',
         body:  `Order #${orderNumber} has been received and is awaiting confirmation.`,
+        icon:  '/logo.svg',
+        badge: '/logo.svg',
+        image: itemsData[0]?.product_image_url || undefined,
         tag:   `order-placed-${orderNumber}`,
         data:  { url: `/orders?order=${orderNumber}`, orderId: order.id },
         actions: [{ action: 'view', title: 'View Order' }],
@@ -554,14 +557,18 @@ export class OrderService {
         }
 
         // Push notification to customer for every meaningful transition
-        PushService.onOrderStatusChanged({
-          userId:      order.user_id,
-          orderId:     order.id,
-          orderNumber: order.order_number,
-          status:      notifyStatus,
-          total:       Number(order.total_amount),
-          currency:    'UGX',
-        }).catch(() => {});
+        ;(async () => {
+          const image = await OrderService.getFirstItemImage(orderId);
+          await PushService.onOrderStatusChanged({
+            userId:      order.user_id,
+            orderId:     order.id,
+            orderNumber: order.order_number,
+            status:      notifyStatus,
+            total:       Number(order.total_amount),
+            currency:    'UGX',
+            image,
+          });
+        })().catch(() => {});
       }
 
       logger.info(`✅ Order updated: ${order.order_number}`);
@@ -603,14 +610,18 @@ export class OrderService {
       logger.info(`✅ Order cancelled: ${order.order_number}`);
 
       // Notify customer that order was cancelled
-      PushService.onOrderStatusChanged({
-        userId:      order.user_id,
-        orderId:     order.id,
-        orderNumber: order.order_number,
-        status:      'cancelled',
-        total:       Number(order.total_amount),
-        currency:    'UGX',
-      }).catch(() => {});
+      ;(async () => {
+        const image = await OrderService.getFirstItemImage(orderId);
+        await PushService.onOrderStatusChanged({
+          userId:      order.user_id,
+          orderId:     order.id,
+          orderNumber: order.order_number,
+          status:      'cancelled',
+          total:       Number(order.total_amount),
+          currency:    'UGX',
+          image,
+        });
+      })().catch(() => {});
 
       return order;
     } catch (error) {
@@ -642,10 +653,13 @@ export class OrderService {
 
       // Send shipping email (non-blocking)
       OrderService.sendStatusEmail(orderId, 'shipped', trackingNumber).catch(() => {});
-      PushService.onOrderStatusChanged({
-        userId: order.user_id, orderId: order.id, orderNumber: order.order_number,
-        status: 'shipped', total: Number(order.total_amount), currency: 'UGX',
-      }).catch(() => {});
+      ;(async () => {
+        const image = await OrderService.getFirstItemImage(orderId);
+        await PushService.onOrderStatusChanged({
+          userId: order.user_id, orderId: order.id, orderNumber: order.order_number,
+          status: 'shipped', total: Number(order.total_amount), currency: 'UGX', image,
+        });
+      })().catch(() => {});
 
       return order;
     } catch (error) {
@@ -671,10 +685,13 @@ export class OrderService {
 
       // Send delivered + review-request email (non-blocking)
       OrderService.sendStatusEmail(orderId, 'delivered').catch(() => {});
-      PushService.onOrderStatusChanged({
-        userId: order.user_id, orderId: order.id, orderNumber: order.order_number,
-        status: 'delivered', total: Number(order.total_amount), currency: 'UGX',
-      }).catch(() => {});
+      ;(async () => {
+        const image = await OrderService.getFirstItemImage(orderId);
+        await PushService.onOrderStatusChanged({
+          userId: order.user_id, orderId: order.id, orderNumber: order.order_number,
+          status: 'delivered', total: Number(order.total_amount), currency: 'UGX', image,
+        });
+      })().catch(() => {});
 
       return order;
     } catch (error) {
@@ -711,10 +728,13 @@ export class OrderService {
 
       // Fire order-confirmed email (non-blocking)
       OrderService.sendStatusEmail(order.id, 'confirmed').catch(() => {});
-      PushService.onOrderStatusChanged({
-        userId: order.user_id, orderId: order.id, orderNumber: order.order_number,
-        status: 'confirmed', total: Number(order.total_amount), currency: 'UGX',
-      }).catch(() => {});
+      ;(async () => {
+        const image = await OrderService.getFirstItemImage(order.id);
+        await PushService.onOrderStatusChanged({
+          userId: order.user_id, orderId: order.id, orderNumber: order.order_number,
+          status: 'confirmed', total: Number(order.total_amount), currency: 'UGX', image,
+        });
+      })().catch(() => {});
 
       return order;
     } catch (error) {
@@ -755,6 +775,23 @@ export class OrderService {
   }
 
   // ── Status-update email helper ────────────────────────────────────────────
+
+  /**
+   * Fetch the product_image_url of the first item in an order.
+   * Best-effort — returns undefined if not found or on error.
+   */
+  private static async getFirstItemImage(orderId: number): Promise<string | undefined> {
+    try {
+      const item = await OrderItem.findOne({
+        where: { order_id: orderId },
+        order: [['id', 'ASC']],
+        attributes: ['product_image_url'],
+      });
+      return (item as any)?.product_image_url || undefined;
+    } catch {
+      return undefined;
+    }
+  }
 
   /**
    * Load a fully-populated order and fire the appropriate status email.
