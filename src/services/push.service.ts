@@ -130,10 +130,13 @@ export class PushService {
     currency: string;
   }): Promise<void> {
     const statusMessages: Record<string, { title: string; body: string }> = {
-      confirmed:        { title: '✅ Order Confirmed',        body: `Order #${opts.orderNumber} has been confirmed and is being packed.` },
+      pending:          { title: '🛒 Order Placed',           body: `Your order #${opts.orderNumber} has been placed and is awaiting confirmation.` },
+      confirmed:        { title: '✅ Order Confirmed',        body: `Order #${opts.orderNumber} has been confirmed and is being prepared.` },
       processing:       { title: '⚙️ Order Processing',       body: `We're picking and preparing your items for order #${opts.orderNumber}.` },
+      picked:           { title: '🧺 Items Picked',           body: `All items for order #${opts.orderNumber} have been picked and are being packed.` },
       packed:           { title: '📦 Order Packed',           body: `Order #${opts.orderNumber} is packed and ready to dispatch.` },
       shipped:          { title: '🚚 Order Shipped',          body: `Your order #${opts.orderNumber} is on its way to you.` },
+      in_transit:       { title: '🚛 Order In Transit',       body: `Order #${opts.orderNumber} is in transit and heading your way.` },
       out_for_delivery: { title: '🛵 Out for Delivery',       body: `Rider is heading your way now! Order #${opts.orderNumber}.` },
       delivered:        { title: '🎉 Order Delivered',        body: `Order #${opts.orderNumber} has been delivered. Enjoy!` },
       cancelled:        { title: '❌ Order Cancelled',        body: `Order #${opts.orderNumber} has been cancelled.` },

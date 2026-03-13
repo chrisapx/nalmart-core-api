@@ -436,14 +436,17 @@ export class DeliveryPricingService {
 
     const products = await Product.findAll({
       where: { id: uniqueProductIds },
-      attributes: ['id', 'category_id'],
+      attributes: ['id', 'category_id', 'free_delivery'],
     });
 
     if (products.length !== uniqueProductIds.length) {
       throw new NotFoundError('One or more products not found while quoting delivery');
     }
 
-    const freeByCampaign = await this.allItemsHaveFreeDeliveryCampaign(products);
+    // Free delivery if every item in the basket has the free_delivery flag set
+    const freeByProductFlag = products.every((p) => Boolean((p as any).free_delivery));
+
+    const freeByCampaign = !freeByProductFlag && await this.allItemsHaveFreeDeliveryCampaign(products);
 
     const store = await this.getOfficialStore();
     
@@ -459,13 +462,15 @@ export class DeliveryPricingService {
       ? Number((store as any).instant_base_fee || 0)
       : Number((store as any).normal_base_fee || 0);
 
-    if (freeByCampaign) {
+    if (freeByProductFlag || freeByCampaign) {
       return {
         shipping_fee: 0,
         distance_km: null,
         used_cache: false,
         free_delivery: true,
-        free_delivery_reason: 'All basket items are covered by active free-delivery campaigns',
+        free_delivery_reason: freeByProductFlag
+          ? 'All basket items include free delivery'
+          : 'All basket items are covered by active free-delivery campaigns',
         delivery_mode: deliveryMode,
         store: {
           id: store.id,

@@ -295,6 +295,15 @@ export class OrderService {
         currency:     'UGX',
       }).catch(() => {});
 
+      // Push: notify customer their order has been placed
+      PushService.notifyUser(data.user_id, {
+        title: '🛒 Order Placed!',
+        body:  `Order #${orderNumber} has been received and is awaiting confirmation.`,
+        tag:   `order-placed-${orderNumber}`,
+        data:  { url: `/orders?order=${orderNumber}`, orderId: order.id },
+        actions: [{ action: 'view', title: 'View Order' }],
+      }).catch(() => {});
+
       return order;
     } catch (error) {
       logger.error('Error creating order:', error);
@@ -471,6 +480,7 @@ export class OrderService {
       if (!order) throw new NotFoundError('Order not found');
 
       const prevStatus = order.status;
+      const prevFulfillmentStatus = order.fulfillment_status;
 
       // Update fields
       if (data.status) order.status = data.status;
@@ -521,9 +531,15 @@ export class OrderService {
         );
       }
 
-      // Fire a status-change email for every meaningful transition
-      if (prevStatus !== order.status) {
-        const statusEmailMap: Partial<Record<string, 'confirmed' | 'processing' | 'packed' | 'shipped' | 'out_for_delivery' | 'delivered'>> = {
+      // Fire notifications on any meaningful transition (status OR fulfillment_status change)
+      const statusChanged = prevStatus !== order.status;
+      const fulfillmentChanged = prevFulfillmentStatus !== order.fulfillment_status;
+
+      if (statusChanged || fulfillmentChanged) {
+        // Prefer fulfillment_status for granular customer-facing notifications
+        const notifyStatus = fulfillmentChanged ? order.fulfillment_status : order.status;
+
+        const emailStatusMap: Partial<Record<string, 'confirmed' | 'processing' | 'packed' | 'shipped' | 'out_for_delivery' | 'delivered'>> = {
           confirmed:        'confirmed',
           processing:       'processing',
           packed:           'packed',
@@ -531,16 +547,18 @@ export class OrderService {
           out_for_delivery: 'out_for_delivery',
           delivered:        'delivered',
         };
-        const emailStatus = statusEmailMap[order.status];
+        const emailStatus = emailStatusMap[notifyStatus];
+        // Avoid double email if both changed to the same meaningful status
         if (emailStatus) {
           OrderService.sendStatusEmail(orderId, emailStatus, order.tracking_number || undefined).catch(() => {});
         }
-        // Push notification for every meaningful status transition
+
+        // Push notification to customer for every meaningful transition
         PushService.onOrderStatusChanged({
           userId:      order.user_id,
           orderId:     order.id,
           orderNumber: order.order_number,
-          status:      order.status,
+          status:      notifyStatus,
           total:       Number(order.total_amount),
           currency:    'UGX',
         }).catch(() => {});
@@ -583,6 +601,17 @@ export class OrderService {
 
       await order.save();
       logger.info(`✅ Order cancelled: ${order.order_number}`);
+
+      // Notify customer that order was cancelled
+      PushService.onOrderStatusChanged({
+        userId:      order.user_id,
+        orderId:     order.id,
+        orderNumber: order.order_number,
+        status:      'cancelled',
+        total:       Number(order.total_amount),
+        currency:    'UGX',
+      }).catch(() => {});
+
       return order;
     } catch (error) {
       logger.error('Error cancelling order:', error);
