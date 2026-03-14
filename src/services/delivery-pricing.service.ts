@@ -18,6 +18,7 @@ interface QuoteInput {
   deliveryAddressId?: number;
   shippingAddress?: Record<string, any>;
   delivery_mode?: 'normal' | 'instant'; // Defaults to 'normal' if not specified
+  store_id?: number; // Use specific store fees; falls back to official store if not provided
 }
 
 interface NormalizedLocation {
@@ -448,7 +449,10 @@ export class DeliveryPricingService {
 
     const freeByCampaign = !freeByProductFlag && await this.allItemsHaveFreeDeliveryCampaign(products);
 
-    const store = await this.getOfficialStore();
+    // Resolve store: use specific store if provided (single-store cart), else official store
+    const store = input.store_id
+      ? (await Store.findByPk(input.store_id)) ?? await this.getOfficialStore()
+      : await this.getOfficialStore();
     
     // Determine delivery mode (default to 'normal' if not specified)
     const deliveryMode = input.delivery_mode || 'normal';

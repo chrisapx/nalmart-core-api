@@ -113,10 +113,11 @@ export default class Product extends Model {
   @ForeignKey(() => Store)
   @Column({
     type: DataType.BIGINT,
-    allowNull: true,
-    comment: 'Which store this product belongs to (null = Nalmart official)',
+    allowNull: false,
+    defaultValue: 1,
+    comment: 'Which store this product belongs to; defaults to official store (id=1)',
   })
-  store_id!: number | null;
+  store_id!: number;
 
   @ForeignKey(() => User)
   @Column({

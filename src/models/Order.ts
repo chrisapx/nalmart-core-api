@@ -12,6 +12,7 @@ import {
 } from 'sequelize-typescript';
 import User from './User';
 import OrderItem from './OrderItem';
+import Store from './Store';
 
 @Table({
   tableName: 'orders',
@@ -41,6 +42,15 @@ export default class Order extends Model {
     allowNull: false,
   })
   user_id!: number;
+
+  @ForeignKey(() => Store)
+  @Column({
+    type: DataType.BIGINT,
+    allowNull: false,
+    defaultValue: 1,
+    comment: 'Store this order belongs to; 1 = official store when products are mixed',
+  })
+  store_id!: number;
 
   @Column({
     type: DataType.ENUM(
@@ -239,6 +249,9 @@ export default class Order extends Model {
   // Associations
   @BelongsTo(() => User)
   user!: User;
+
+  @BelongsTo(() => Store)
+  store!: Store;
 
   @HasMany(() => OrderItem)
   items!: OrderItem[];

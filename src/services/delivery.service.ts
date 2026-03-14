@@ -792,6 +792,7 @@ export class DeliveryService {
     delivery_address_id?: number;
     shipping_address?: Record<string, any>;
     delivery_mode?: 'normal' | 'instant';
+    store_id?: number;
   }): Promise<any> {
     return DeliveryPricingService.quoteDeliveryFee({
       userId: data.user_id,
@@ -799,6 +800,7 @@ export class DeliveryService {
       deliveryAddressId: data.delivery_address_id,
       shippingAddress: data.shipping_address,
       delivery_mode: data.delivery_mode,
+      store_id: data.store_id,
     });
   }
 

@@ -87,6 +87,10 @@ export class OrderService {
         throw new BadRequestError('One or more products not found');
       }
 
+      // Determine order store: single store if all products belong to the same one, else official (id=1)
+      const storeIds = Array.from(new Set(products.map((p) => Number((p as any).store_id || 1))));
+      const orderStoreId = storeIds.length === 1 ? storeIds[0] : 1;
+
       // Calculate totals
       let subtotal = 0;
       let totalWeight = 0;
@@ -152,6 +156,7 @@ export class OrderService {
           })),
           delivery_address_id: data.delivery_address_id,
           shipping_address: data.shipping_address,
+          store_id: orderStoreId,
         });
         shippingAmount = Number(quote?.shipping_fee || 0);
       } catch (quoteError) {
@@ -186,6 +191,7 @@ export class OrderService {
       const order = await Order.create({
         order_number: orderNumber,
         user_id: data.user_id,
+        store_id: orderStoreId,
         status: 'pending',
         payment_status: 'pending',
         fulfillment_status: 'pending',
