@@ -926,3 +926,111 @@ export const googleAuth = (req: Request, res: Response, next: NextFunction): voi
   // This is a placeholder - actual authentication is handled by passport middleware
   next();
 };
+
+/**
+ * POST /auth/google/onetap
+ * Verifies a Google One Tap credential (id_token) and returns access/refresh tokens.
+ * Body: { credential: string }
+ */
+export const googleOneTap = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { credential } = req.body;
+    if (!credential) {
+      res.status(400).json({ success: false, message: 'credential is required' });
+      return;
+    }
+
+    const clientId = env.GOOGLE_CLIENT_ID;
+    if (!clientId) {
+      res.status(503).json({ success: false, message: 'Google auth not configured' });
+      return;
+    }
+
+    const { OAuth2Client } = await import('google-auth-library');
+    const oauthClient = new OAuth2Client(clientId);
+
+    const ticket = await oauthClient.verifyIdToken({
+      idToken: credential,
+      audience: clientId,
+    });
+
+    const payload = ticket.getPayload();
+    if (!payload || !payload.email) {
+      res.status(401).json({ success: false, message: 'Invalid Google credential' });
+      return;
+    }
+
+    const { sub: googleId, email, given_name: firstName = '', family_name: lastName = '', picture: avatar } = payload;
+
+    // Find or create user — same logic as the Passport Google strategy
+    let user = await User.findOne({ where: { google_id: googleId } });
+
+    if (user) {
+      if (avatar && (user as any).google_avatar !== avatar) {
+        (user as any).google_avatar = avatar;
+        await user.save();
+      }
+    } else {
+      user = await User.findOne({ where: { email } });
+      if (user) {
+        (user as any).google_id = googleId;
+        (user as any).google_email = email;
+        (user as any).google_avatar = avatar ?? null;
+        user.account_verified = true;
+        user.email_verified = true;
+        (user as any).verification_method = 'google';
+        await user.save();
+        logger.info(`Linked Google account (One Tap) to existing user: ${email}`);
+      } else {
+        user = await User.create({
+          first_name: firstName,
+          last_name: lastName,
+          email,
+          password: Math.random().toString(36).slice(-12) + 'G1!',
+          google_id: googleId,
+          google_email: email,
+          google_avatar: avatar,
+          account_verified: true,
+          email_verified: true,
+          verification_method: 'google',
+          avatar_url: avatar,
+        });
+        logger.info(`New user created via Google One Tap: ${email}`);
+      }
+    }
+
+    const { ipAddress, userAgent } = SessionService.extractSessionInfo(req);
+    (user as any).last_login_at = new Date();
+    (user as any).last_login_ip = ipAddress;
+    await user.save();
+
+    const session = await SessionService.createSession({
+      userId: user.id,
+      ipAddress,
+      userAgent,
+      expiresIn: 7 * 24 * 60 * 60,
+    });
+
+    const tokens = generateTokenPair(user.id, session.session_id, user.email, user.account_verified);
+
+    logger.info(`✅ Google One Tap successful for user: ${email}`);
+    sendSuccess(res, {
+      tokens,
+      user: {
+        id: user.id,
+        email: user.email,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        avatar_url: (user as any).avatar_url ?? (user as any).google_avatar ?? null,
+        account_verified: user.account_verified,
+      },
+    }, 'Logged in with Google');
+  } catch (error) {
+    logger.error('Google One Tap error:', error);
+    next(error);
+  }
+};

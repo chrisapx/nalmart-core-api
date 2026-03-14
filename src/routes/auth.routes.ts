@@ -15,6 +15,7 @@ import {
   getSessionStats,
   googleAuth,
   googleCallback,
+  googleOneTap,
   forgotPassword,
   resetPassword,
   requestLoginOTP,
@@ -90,6 +91,9 @@ router.get('/google/failure', (req, res) => {
     details: 'Please ensure the callback URL is correctly configured in both your backend and Google Cloud Console.',
   });
 });
+
+// Google One Tap (credential POST from browser)
+router.post('/google/onetap', googleOneTap);
 
 // ============================================================================
 // PROTECTED ROUTES (Authentication required)
