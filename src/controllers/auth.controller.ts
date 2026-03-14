@@ -1034,3 +1034,38 @@ export const googleOneTap = async (
     next(error);
   }
 };
+
+/**
+ * POST /auth/setup-password
+ * Lets a Google-authenticated user set a real password for the first time,
+ * without needing a current_password (they don't know the auto-generated one).
+ * Only allowed when the user has a google_id (verified Google user).
+ */
+export const setupPassword = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { new_password } = req.body;
+    if (!new_password) throw new ValidationError('new_password is required');
+    if (new_password.length < 8) throw new ValidationError('Password must be at least 8 characters');
+
+    const userId = req.user?.id;
+    if (!userId) throw new ValidationError('User not authenticated');
+
+    const user = await User.findByPk(userId);
+    if (!user) throw new ValidationError('User not found');
+    if (!(user as any).google_id) {
+      throw new ValidationError('This endpoint is only for Google-authenticated accounts');
+    }
+
+    user.password = new_password; // BeforeUpdate hook will hash it
+    await user.save();
+
+    logger.info(`Password set up for Google user ${user.email}`);
+    sendSuccess(res, null, 'Password set successfully');
+  } catch (error) {
+    next(error);
+  }
+};

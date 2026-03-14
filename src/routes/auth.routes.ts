@@ -16,6 +16,7 @@ import {
   googleAuth,
   googleCallback,
   googleOneTap,
+  setupPassword,
   forgotPassword,
   resetPassword,
   requestLoginOTP,
@@ -102,6 +103,7 @@ router.post('/google/onetap', googleOneTap);
 // Profile
 router.get('/profile', authenticate, getProfile);
 router.post('/change-password', authenticate, changePassword);
+router.post('/setup-password', authenticate, setupPassword);
 
 // Logout
 router.post('/logout', authenticate, logout);
