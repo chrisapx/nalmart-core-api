@@ -803,10 +803,60 @@ export class ProductService {
   }
 
   static async deleteProduct(id: number, actor?: AuditActor): Promise<void> {
-    const product = await Product.findByPk(id);
+    const product = await Product.findByPk(id, {
+      include: [
+        { model: ProductImage, as: 'images' },
+        { model: ProductVideo, as: 'videos' }
+      ]
+    });
 
     if (!product) {
       throw new NotFoundError(`Product with ID ${id} not found`);
+    }
+
+    let deletedImagesCount = 0;
+    let deletedVideosCount = 0;
+    let failedS3Deletions = 0;
+
+    // Clean up S3 files for images before deleting the product
+    if (product.images && product.images.length > 0) {
+      logger.info(`🧹 Cleaning up ${product.images.length} product images from S3...`);
+      for (const image of product.images) {
+        try {
+          const key = this.extractS3KeyFromUrl(image.url);
+          if (key) {
+            await UploadService.deleteFile(key);
+            deletedImagesCount++;
+            logger.info(`✓ Deleted S3 image: ${key}`);
+          }
+        } catch (error) {
+          failedS3Deletions++;
+          logger.warn(`✗ Failed to delete S3 file for image ${image.id} (${image.url}):`, error);
+        }
+      }
+    }
+
+    // Clean up S3 files for videos before deleting the product
+    if (product.videos && product.videos.length > 0) {
+      logger.info(`🧹 Cleaning up ${product.videos.length} product videos from S3...`);
+      for (const video of product.videos) {
+        // Only delete from S3 if it's a local upload, not an external embed
+        if (video.platform === 'local') {
+          try {
+            const key = this.extractS3KeyFromUrl(video.url);
+            if (key) {
+              await UploadService.deleteFile(key);
+              deletedVideosCount++;
+              logger.info(`✓ Deleted S3 video: ${key}`);
+            }
+          } catch (error) {
+            failedS3Deletions++;
+            logger.warn(`✗ Failed to delete S3 file for video ${video.id} (${video.url}):`, error);
+          }
+        } else {
+          logger.info(`↷ Skipped external video (${video.platform}): ${video.url}`);
+        }
+      }
     }
 
     const snapshot = product.toJSON();
@@ -824,7 +874,11 @@ export class ProductService {
       user_agent:  actor?.userAgent ?? null,
     }).catch((e: unknown) => logger.warn('[Audit] Failed to write delete log:', e));
 
-    logger.info(`Product deleted: ${id} - ${product.name}`);
+    logger.info(
+      `✅ Product deleted: ${id} - ${product.name} | ` +
+      `S3 cleanup: ${deletedImagesCount} images, ${deletedVideosCount} videos` +
+      (failedS3Deletions > 0 ? ` | ⚠️  ${failedS3Deletions} failed` : '')
+    );
   }
 
   static async updateStock(
