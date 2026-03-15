@@ -14,6 +14,7 @@ import {
 import Category from './Category';
 import ProductImage from './ProductImage';
 import ProductVideo from './ProductVideo';
+import ProductVariant from './ProductVariant';
 import Inventory from './Inventory';
 import Store from './Store';
 import User from './User';
@@ -262,6 +263,13 @@ export default class Product extends Model {
   })
   metadata!: Record<string, unknown>;
 
+  @Column({
+    type: DataType.JSON,
+    allowNull: true,
+    comment: 'Product specifications as key-value pairs (e.g., {"Material": "Cotton", "Brand": "Nike"})',
+  })
+  specifications!: Record<string, string>;
+
   @CreatedAt
   created_at!: Date;
 
@@ -283,6 +291,9 @@ export default class Product extends Model {
 
   @BelongsTo(() => User, { foreignKey: 'updated_by', as: 'updatedByUser', constraints: false })
   updatedByUser?: User;
+
+  @HasMany(() => ProductVariant)
+  variants!: ProductVariant[];
 
   @HasMany(() => ProductImage)
   images!: ProductImage[];

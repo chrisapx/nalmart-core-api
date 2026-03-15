@@ -10,6 +10,7 @@ import {
 } from 'sequelize-typescript';
 import Order from './Order';
 import Product from './Product';
+import ProductVariant from './ProductVariant';
 
 @Table({
   tableName: 'order_items',
@@ -38,6 +39,14 @@ export default class OrderItem extends Model {
   })
   product_id!: number;
 
+  @ForeignKey(() => ProductVariant)
+  @Column({
+    type: DataType.BIGINT,
+    allowNull: true,
+    comment: 'Variant ID if a specific variant was ordered',
+  })
+  variant_id!: number;
+
   @Column({
     type: DataType.STRING(255),
     allowNull: false,
@@ -58,6 +67,20 @@ export default class OrderItem extends Model {
     comment: 'Snapshot of product image URL',
   })
   product_image_url!: string;
+
+  @Column({
+    type: DataType.STRING(255),
+    allowNull: true,
+    comment: 'Snapshot of variant name at time of order (e.g., "Red - Large")',
+  })
+  variant_name!: string;
+
+  @Column({
+    type: DataType.JSON,
+    allowNull: true,
+    comment: 'Snapshot of variant attributes at time of order (e.g., {"color": "Red", "size": "Large"})',
+  })
+  variant_attributes!: Record<string, string>;
 
   @Column({
     type: DataType.INTEGER,
@@ -106,4 +129,7 @@ export default class OrderItem extends Model {
 
   @BelongsTo(() => Product)
   product!: Product;
+
+  @BelongsTo(() => ProductVariant, { foreignKey: 'variant_id', as: 'productVariant' })
+  productVariant?: ProductVariant;
 }

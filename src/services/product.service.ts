@@ -4,6 +4,7 @@ import Product from '../models/Product';
 import Category from '../models/Category';
 import ProductImage from '../models/ProductImage';
 import ProductVideo from '../models/ProductVideo';
+import ProductVariant from '../models/ProductVariant';
 import ProductAuditLog from '../models/ProductAuditLog';
 import Store from '../models/Store';
 import User from '../models/User';
@@ -595,6 +596,12 @@ export class ProductService {
           attributes: ['id', 'url', 'title', 'video_type', 'platform', 'external_id', 'sort_order', 'duration'],
           order: [['sort_order', 'ASC']],
         },
+        {
+          model: ProductVariant,
+          as: 'variants',
+          attributes: ['id', 'sku', 'variant_name', 'attributes', 'price_adjustment', 'stock_quantity', 'image_url', 'is_available', 'sort_order', 'weight', 'dimensions'],
+          order: [['sort_order', 'ASC']],
+        },
       ],
     });
 
@@ -650,6 +657,12 @@ export class ProductService {
           attributes: ['id', 'url', 'title', 'description', 'thumbnail_url', 'duration', 'video_type', 'platform', 'external_id', 'sort_order', 'size', 'mime_type'],
           order: [['sort_order', 'ASC']],
         },
+        {
+          model: ProductVariant,
+          as: 'variants',
+          attributes: ['id', 'sku', 'variant_name', 'attributes', 'price_adjustment', 'stock_quantity', 'image_url', 'is_available', 'sort_order', 'weight', 'dimensions'],
+          order: [['sort_order', 'ASC']],
+        },
       ],
     });
 
@@ -679,6 +692,12 @@ export class ProductService {
           model: ProductVideo,
           as: 'videos',
           attributes: ['id', 'url', 'title', 'description', 'thumbnail_url', 'duration', 'video_type', 'platform', 'external_id', 'sort_order', 'size', 'mime_type'],
+          order: [['sort_order', 'ASC']],
+        },
+        {
+          model: ProductVariant,
+          as: 'variants',
+          attributes: ['id', 'sku', 'variant_name', 'attributes', 'price_adjustment', 'stock_quantity', 'image_url', 'is_available', 'sort_order', 'weight', 'dimensions'],
           order: [['sort_order', 'ASC']],
         },
       ],
@@ -806,7 +825,8 @@ export class ProductService {
     const product = await Product.findByPk(id, {
       include: [
         { model: ProductImage, as: 'images' },
-        { model: ProductVideo, as: 'videos' }
+        { model: ProductVideo, as: 'videos' },
+        { model: ProductVariant, as: 'variants' }
       ]
     });
 
@@ -943,6 +963,12 @@ export class ProductService {
           model: ProductVideo,
           as: 'videos',
           attributes: ['id', 'url', 'title', 'video_type', 'platform', 'external_id', 'sort_order'],
+          order: [['sort_order', 'ASC']],
+        },
+        {
+          model: ProductVariant,
+          as: 'variants',
+          attributes: ['id', 'sku', 'variant_name', 'attributes', 'price_adjustment', 'stock_quantity', 'image_url', 'is_available', 'sort_order'],
           order: [['sort_order', 'ASC']],
         },
       ],

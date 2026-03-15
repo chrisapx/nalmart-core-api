@@ -12,6 +12,7 @@ import Category from '../models/Category';
 import Product from '../models/Product';
 import ProductImage from '../models/ProductImage';
 import ProductVideo from '../models/ProductVideo';
+import ProductVariant from '../models/ProductVariant';
 import Review from '../models/Review';
 import Currency from '../models/Currency';
 import Order from '../models/Order';
@@ -71,6 +72,7 @@ const sequelize = new Sequelize({
     Product,
     ProductImage,
     ProductVideo,
+    ProductVariant,
     Review,
     Currency,
     Order,
